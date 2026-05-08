@@ -1,0 +1,70 @@
+'use client';
+
+import Link from 'next/link';
+import { useState } from 'react';
+
+export default function WholesalerAuthPage() {
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const update = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setTimeout(() => {
+      setLoading(false);
+      setError('Supabase not configured yet. Add real keys to .env.local to enable login.');
+    }, 800);
+  };
+
+  return (
+    <main style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #EFF6FF 0%, var(--bg-base) 50%)', display: 'flex', flexDirection: 'column' }}>
+      <nav style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)', height: '4rem', display: 'flex', alignItems: 'center' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Link href="/" style={{ fontFamily: 'Outfit,sans-serif', fontWeight: 800, fontSize: '1.3rem', color: 'var(--green-900)' }}>🌾 AgriConnect</Link>
+          <span className="badge badge-blue">Wholesaler Portal</span>
+        </div>
+      </nav>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+        <div style={{ width: '100%', maxWidth: '420px' }}>
+          <div className="card" style={{ padding: '2.5rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ width: '5rem', height: '5rem', borderRadius: '50%', background: '#DBEAFE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.25rem', margin: '0 auto 1rem' }}>🏭</div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem' }}>Wholesaler Login</h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>B2B bulk produce sourcing platform</p>
+            </div>
+            <form onSubmit={handleLogin}>
+              <div className="form-group">
+                <label className="label" htmlFor="ws-email">Business Email</label>
+                <input id="ws-email" type="email" className="input" placeholder="bulk@yourbusiness.com"
+                  value={form.email} onChange={e => update('email', e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label className="label" htmlFor="ws-password">Password</label>
+                <input id="ws-password" type="password" className="input" placeholder="••••••••"
+                  value={form.password} onChange={e => update('password', e.target.value)} required />
+              </div>
+              {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}><span>⚠️</span><span style={{ fontSize: '0.85rem' }}>{error}</span></div>}
+              <button id="ws-login-btn" type="submit" className="btn" disabled={loading}
+                style={{ width: '100%', justifyContent: 'center', background: 'var(--wholesaler-primary)', color: '#fff' }}>
+                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem', borderTopColor: '#fff' }} /> : 'Sign In to Wholesaler Portal'}
+              </button>
+            </form>
+            <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              New business?{' '}
+              <Link href="/auth/wholesaler/register" style={{ color: 'var(--wholesaler-primary)', fontWeight: 600 }}>Register & apply for KYC</Link>
+            </p>
+          </div>
+          <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+              <Link href="/auth/consumer" className="btn btn-ghost btn-sm">🛒 Consumer</Link>
+              <Link href="/auth/farmer" className="btn btn-ghost btn-sm">🌾 Farmer</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
