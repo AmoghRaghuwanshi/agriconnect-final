@@ -2,11 +2,15 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore, DEMO_USERS } from '@/store/authStore';
 
 export default function FarmerAuthPage() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
+  const login = useAuthStore((s) => s.login);
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,8 +20,13 @@ export default function FarmerAuthPage() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      setError('OTP service requires Supabase + Fast2SMS keys in .env.local.');
-    }, 800);
+      setError('OTP service requires API keys. Use the Demo Login button above.');
+    }, 600);
+  };
+
+  const handleDemoLogin = () => {
+    login(DEMO_USERS.FARMER);
+    router.push('/farmer/dashboard');
   };
 
   return (
@@ -36,9 +45,21 @@ export default function FarmerAuthPage() {
               🌾
             </div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem' }}>Farmer Login</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem' }}>
-              Enter your mobile number. We&apos;ll send an OTP via WhatsApp.
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              Enter your mobile number — or use demo login below.
             </p>
+
+            {/* Demo Login — prominent */}
+            <button
+              id="demo-farmer-login"
+              className="btn btn-primary"
+              onClick={handleDemoLogin}
+              style={{ width: '100%', justifyContent: 'center', marginBottom: '1.25rem', padding: '0.875rem', fontSize: '0.95rem', gap: '0.75rem' }}
+            >
+              ⚡ Demo Login as Farmer (Raju Patel)
+            </button>
+
+            <div className="divider">or login with OTP</div>
 
             <form onSubmit={handleSendOTP}>
               <div className="form-group" style={{ textAlign: 'left' }}>
@@ -61,9 +82,9 @@ export default function FarmerAuthPage() {
 
               {error && <div className="alert alert-error" style={{ marginBottom: '1rem', textAlign: 'left' }}><span>⚠️</span><span style={{ fontSize: '0.85rem' }}>{error}</span></div>}
 
-              <button id="farmer-send-otp-btn" type="submit" className="btn btn-primary" disabled={loading}
+              <button id="farmer-send-otp-btn" type="submit" className="btn btn-outline" disabled={loading}
                 style={{ width: '100%', justifyContent: 'center' }}>
-                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem', borderTopColor: '#fff' }} /> : '📱 Send OTP via WhatsApp'}
+                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem' }} /> : '📱 Send OTP via WhatsApp'}
               </button>
             </form>
 
@@ -74,7 +95,6 @@ export default function FarmerAuthPage() {
           </div>
 
           <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>Looking for a different portal?</p>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
               <Link href="/auth/consumer" className="btn btn-ghost btn-sm">🛒 Consumer</Link>
               <Link href="/auth/wholesaler" className="btn btn-ghost btn-sm">🏭 Wholesaler</Link>

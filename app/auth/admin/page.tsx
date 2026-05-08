@@ -2,11 +2,15 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore, DEMO_USERS } from '@/store/authStore';
 
 export default function AdminAuthPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
+  const login = useAuthStore((s) => s.login);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,8 +18,13 @@ export default function AdminAuthPage() {
     setError('');
     setTimeout(() => {
       setLoading(false);
-      setError('Admin login requires Supabase credentials. Add keys to .env.local.');
-    }, 800);
+      setError('Admin login requires Supabase. Use the Demo Login button above.');
+    }, 600);
+  };
+
+  const handleDemoLogin = () => {
+    login(DEMO_USERS.ADMIN);
+    router.push('/admin/dashboard');
   };
 
   return (
@@ -29,11 +38,24 @@ export default function AdminAuthPage() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
         <div style={{ width: '100%', maxWidth: '380px' }}>
           <div className="card" style={{ padding: '2.5rem' }}>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
               <div style={{ width: '4rem', height: '4rem', borderRadius: '50%', background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', margin: '0 auto 1rem' }}>⚙️</div>
               <h1 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '0.25rem' }}>Admin Login</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Restricted access — AgriConnect staff only</p>
             </div>
+
+            {/* Demo Login */}
+            <button
+              id="demo-admin-login"
+              className="btn"
+              onClick={handleDemoLogin}
+              style={{ width: '100%', justifyContent: 'center', marginBottom: '1.25rem', padding: '0.875rem', fontSize: '0.95rem', gap: '0.75rem', background: 'var(--admin-primary)', color: '#fff' }}
+            >
+              ⚡ Demo Login as Admin
+            </button>
+
+            <div className="divider">or sign in with credentials</div>
+
             <form onSubmit={handleLogin}>
               <div className="form-group">
                 <label className="label" htmlFor="admin-email">Admin Email</label>
@@ -46,9 +68,9 @@ export default function AdminAuthPage() {
                   value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required />
               </div>
               {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}><span>⚠️</span><span style={{ fontSize: '0.85rem' }}>{error}</span></div>}
-              <button id="admin-login-btn" type="submit" className="btn" disabled={loading}
-                style={{ width: '100%', justifyContent: 'center', background: 'var(--admin-primary)', color: '#fff' }}>
-                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem', borderTopColor: '#fff' }} /> : 'Access Admin Panel'}
+              <button id="admin-login-btn" type="submit" className="btn btn-outline" disabled={loading}
+                style={{ width: '100%', justifyContent: 'center' }}>
+                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem' }} /> : 'Sign In with Email'}
               </button>
             </form>
           </div>

@@ -2,11 +2,15 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore, DEMO_USERS } from '@/store/authStore';
 
 export default function WholesalerAuthPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
+  const login = useAuthStore((s) => s.login);
   const update = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -15,8 +19,13 @@ export default function WholesalerAuthPage() {
     setError('');
     setTimeout(() => {
       setLoading(false);
-      setError('Supabase not configured yet. Add real keys to .env.local to enable login.');
-    }, 800);
+      setError('Supabase not configured. Use the Demo Login button above.');
+    }, 600);
+  };
+
+  const handleDemoLogin = () => {
+    login(DEMO_USERS.WHOLESALER);
+    router.push('/wholesaler/dashboard');
   };
 
   return (
@@ -30,11 +39,24 @@ export default function WholesalerAuthPage() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
         <div style={{ width: '100%', maxWidth: '420px' }}>
           <div className="card" style={{ padding: '2.5rem' }}>
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
               <div style={{ width: '5rem', height: '5rem', borderRadius: '50%', background: '#DBEAFE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.25rem', margin: '0 auto 1rem' }}>🏭</div>
               <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.25rem' }}>Wholesaler Login</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>B2B bulk produce sourcing platform</p>
             </div>
+
+            {/* Demo Login */}
+            <button
+              id="demo-wholesaler-login"
+              className="btn"
+              onClick={handleDemoLogin}
+              style={{ width: '100%', justifyContent: 'center', marginBottom: '1.25rem', padding: '0.875rem', fontSize: '0.95rem', gap: '0.75rem', background: 'var(--wholesaler-primary)', color: '#fff' }}
+            >
+              ⚡ Demo Login as Wholesaler (Rajesh Agarwal)
+            </button>
+
+            <div className="divider">or sign in with email</div>
+
             <form onSubmit={handleLogin}>
               <div className="form-group">
                 <label className="label" htmlFor="ws-email">Business Email</label>
@@ -47,9 +69,9 @@ export default function WholesalerAuthPage() {
                   value={form.password} onChange={e => update('password', e.target.value)} required />
               </div>
               {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}><span>⚠️</span><span style={{ fontSize: '0.85rem' }}>{error}</span></div>}
-              <button id="ws-login-btn" type="submit" className="btn" disabled={loading}
-                style={{ width: '100%', justifyContent: 'center', background: 'var(--wholesaler-primary)', color: '#fff' }}>
-                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem', borderTopColor: '#fff' }} /> : 'Sign In to Wholesaler Portal'}
+              <button id="ws-login-btn" type="submit" className="btn btn-outline" disabled={loading}
+                style={{ width: '100%', justifyContent: 'center' }}>
+                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem' }} /> : 'Sign In with Email'}
               </button>
             </form>
             <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>

@@ -84,7 +84,7 @@ html {
 }
 
 body {
-  font-family: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-figtree, 'Figtree'), ui-sans-serif, system-ui, sans-serif;
   background-color: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -760,6 +760,82 @@ input[type="range"]::-moz-range-thumb {
   clip: rect(0,0,0,0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid var(--border);
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 0.6rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active {
+  color: var(--green-900);
+  border-bottom-color: var(--green-900);
+  font-weight: 700;
+}
+
+/* ── Progress bars ────────────────────────────────────────────────────────── */
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green-600), var(--green-900));
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+/* ── Form rows ────────────────────────────────────────────────────────────── */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+
+/* ── Label helpers ────────────────────────────────────────────────────────── */
+.label-cap {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+/* ── Additional badges ────────────────────────────────────────────────────── */
+.badge-purple {
+  background: #EDE9FE;
+  color: #5B21B6;
+}
+.badge-red {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+.badge-gray {
+  background: #F3F4F6;
+  color: #374151;
 }
 
 /* ── Responsive helpers ──────────────────────────────────────────────────── */

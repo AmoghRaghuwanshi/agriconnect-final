@@ -1,0 +1,94 @@
+
+> agriconnect@1.0.0 dev
+> next dev -H 127.0.0.1 --turbo
+
+  ▲ Next.js 14.2.29 (turbo)
+  - Local:        http://127.0.0.1:3000
+  - Network:      http://127.0.0.1:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Compiled in 737ms
+ ✓ Ready in 1876ms
+ ○ Compiling / ...
+ ✓ Compiled / in 4.2s
+ GET / 200 in 4711ms
+ GET / 200 in 252ms
+ ○ Compiling /marketplace ...
+ ✓ Compiled /marketplace in 2.4s
+ GET /marketplace 200 in 2699ms
+ ○ Compiling /cart ...
+ ✓ Compiled /cart in 1319ms
+ GET /cart 200 in 1533ms
+ ○ Compiling /checkout ...
+ ✓ Compiled /checkout in 1139ms
+ GET /checkout 200 in 1337ms
+ ○ Compiling /farmer/dashboard ...
+ ✓ Compiled /farmer/dashboard in 891ms
+ GET /farmer/dashboard 200 in 1352ms
+ GET /farmer/dashboard 200 in 205ms
+ ○ Compiling /mandi ...
+ GET /mandi 200 in 1160ms
+ ✓ Compiled /mandi in 1192ms
+ GET /farmer/listings 200 in 948ms
+ GET /cart 200 in 173ms
+ GET /checkout 200 in 185ms
+ ○ Compiling /farmer/listings/new ...
+ GET /farmer/listings/new 200 in 963ms
+ GET /checkout/payment 200 in 785ms
+ ✓ Compiled /farmer/listings/new in 2s
+ GET /checkout/success 200 in 906ms
+ GET /farmer/listings/L001/edit 200 in 1335ms
+ GET /farmer/listings/does-not-exist/edit 200 in 164ms
+ ○ Compiling /orders ...
+ GET /orders 200 in 937ms
+ GET /farmer/orders 200 in 956ms
+ GET /orders/ORD-2041 200 in 1167ms
+ ✓ Compiled /orders in 2.2s
+ GET /orders/does-not-exist 200 in 153ms
+ GET /farmer/orders/ORD-2041 200 in 1205ms
+ GET /farmer/orders/does-not-exist 200 in 213ms
+ ○ Compiling /profile ...
+ GET /profile 200 in 957ms
+ GET /farmer/income 200 in 969ms
+ GET /profile/edit 200 in 924ms
+ ✓ Compiled /profile in 2.4s
+ GET /farmer/score 200 in 936ms
+ GET / 200 in 156ms
+ ○ Compiling /auth/farmer ...
+ GET /wholesaler/dashboard 200 in 1708ms
+ GET /auth/farmer 200 in 1781ms
+ GET /admin/users 200 in 1719ms
+ ✓ Compiled /auth/farmer in 1818ms
+ ○ Compiling /wholesaler/browse ...
+ GET /wholesaler/browse 200 in 1337ms
+ GET /auth/wholesaler 200 in 1369ms
+ GET /admin/orders 200 in 1423ms
+ GET /auth/admin 200 in 1386ms
+ GET /wholesaler/orders 200 in 1418ms
+ GET /auth/wholesaler/register 200 in 1614ms
+ GET /admin/disputes 200 in 1561ms
+ GET /auth/consumer 200 in 1533ms
+ GET /marketplace 200 in 202ms
+ GET /wholesaler/rfq 200 in 1521ms
+ GET /admin/analytics 200 in 1473ms
+ GET /auth/consumer/forgot-password 200 in 1568ms
+ GET /marketplace/L001 200 in 1967ms
+ GET /marketplace/does-not-exist 200 in 256ms
+ GET /wholesaler/credit 200 in 1441ms
+ ✓ Compiled /wholesaler/browse in 5.9s
+ GET /legal/terms 200 in 1299ms
+ GET /auth/consumer/register 200 in 1267ms
+ ○ Compiling /admin/dashboard ...
+ ✓ Compiled /admin/dashboard in 951ms
+ GET /admin/dashboard 200 in 1048ms
+ GET /legal/privacy 200 in 1036ms
+ ○ Compiling /legal/refunds ...
+ ✓ Compiled /legal/refunds in 857ms
+ GET /legal/refunds 200 in 988ms
+ ✓ Compiled in 8.6s
+ ✓ Compiled in 76ms
+ ✓ Compiled in 52ms
+ ✓ Compiled in 51ms
+ ✓ Compiled middleware in 214ms
+ ✓ Compiled in 61ms
