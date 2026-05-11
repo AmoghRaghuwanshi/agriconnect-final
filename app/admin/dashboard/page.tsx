@@ -22,6 +22,7 @@ export default function AdminDashboardPage() {
     
     // Fetch live DB stats
     if (mounted && isAuthenticated && user?.role === 'ADMIN') {
+      useOrderStore.getState().fetchOrders(); // Sync latest orders for the recent list
       fetch('/api/stats')
         .then(res => res.json())
         .then(data => { if (data.stats) setStats(data.stats); })

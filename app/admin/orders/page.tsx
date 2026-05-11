@@ -19,7 +19,13 @@ export default function AdminOrdersPage() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) router.push('/auth/admin');
+    if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) {
+      router.push('/auth/admin');
+      return;
+    }
+    if (mounted && isAuthenticated && user?.role === 'ADMIN') {
+      useOrderStore.getState().fetchOrders(); // Fetch all global orders
+    }
   }, [mounted, isAuthenticated, user, router]);
 
   if (!mounted || !user) return null;

@@ -31,13 +31,21 @@ export default function AdminUsersPage() {
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
-  const [users, setUsers] = useState(INITIAL_USERS);
+  const [users, setUsers] = useState<UserRecord[]>([]);
   const [viewingUser, setViewingUser] = useState<UserRecord | null>(null);
   const [toast, setToast] = useState('');
 
   useEffect(() => { setMounted(true); }, []);
+  
   useEffect(() => {
     if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) router.push('/auth/admin');
+    
+    if (mounted && isAuthenticated && user?.role === 'ADMIN') {
+      fetch('/api/users')
+        .then(res => res.json())
+        .then(data => { if (data.users) setUsers(data.users); })
+        .catch(console.error);
+    }
   }, [mounted, isAuthenticated, user, router]);
 
   if (!mounted || !user) return null;

@@ -16,7 +16,14 @@ export default function AdminAnalyticsPage() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) router.push('/auth/admin');
+    if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) {
+      router.push('/auth/admin');
+      return;
+    }
+    if (mounted && isAuthenticated && user?.role === 'ADMIN') {
+      useOrderStore.getState().fetchOrders();
+      useListingStore.getState().fetchListings();
+    }
   }, [mounted, isAuthenticated, user, router]);
 
   if (!mounted || !user) return null;
