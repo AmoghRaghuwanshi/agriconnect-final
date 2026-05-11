@@ -137,7 +137,7 @@ export default function DashboardNav() {
         height: 'var(--nav-height)',
         display: 'flex', alignItems: 'center',
       }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
           {/* Logo */}
           <Link href="/" style={{
             display: 'flex', alignItems: 'center', gap: '0.4rem',

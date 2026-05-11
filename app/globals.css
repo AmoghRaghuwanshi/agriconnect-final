@@ -901,7 +901,7 @@ input[type="range"]::-moz-range-thumb {
   display: flex; align-items: center;
 }
 .landing-nav-inner {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 2rem;
 }
 .landing-logo {
   display: flex; align-items: center; gap: 0.4rem;
