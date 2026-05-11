@@ -18,7 +18,7 @@ export default function AdminAuthPage() {
     setError('');
     setTimeout(() => {
       setLoading(false);
-      setError('Admin login requires Supabase. Use the Demo Login button above.');
+      setError('Email login coming soon. Use the Demo Login button above.');
     }, 600);
   };
 

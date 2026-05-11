@@ -19,7 +19,7 @@ export default function WholesalerAuthPage() {
     setError('');
     setTimeout(() => {
       setLoading(false);
-      setError('Supabase not configured. Use the Demo Login button above.');
+      setError('Email login coming soon. Use the Demo Login button above.');
     }, 600);
   };
 

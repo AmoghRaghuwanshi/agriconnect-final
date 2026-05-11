@@ -19,7 +19,7 @@ export default function WholesalerRegisterPage() {
     setError('');
     setTimeout(() => {
       setLoading(false);
-      setError('Registration requires Supabase. Add real keys to .env.local.');
+      setError('Registration coming soon. Use Demo Login on the sign-in page.');
     }, 800);
   };
 
