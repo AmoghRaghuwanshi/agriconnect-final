@@ -13,14 +13,32 @@ export default function WholesalerRegisterPage() {
   const [error, setError] = useState('');
   const update = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
 
+  const register = useAuthStore((s) => s.register);
+  const router = useRouter();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (step === 1) { setStep(2); return; }
+    
     setLoading(true);
     setError('');
-    setTimeout(() => {
-      setLoading(false);
-      setError('Registration coming soon. Use Demo Login on the sign-in page.');
-    }, 800);
+    
+    // Register to actual backend DB
+    const result = await register({
+      name: form.contactName,
+      email: form.email,
+      password: form.password,
+      role: 'WHOLESALER',
+      phone: form.phone,
+      businessName: form.businessName,
+    });
+    
+    setLoading(false);
+    if (result.success) {
+      router.push('/wholesaler/dashboard');
+    } else {
+      setError(result.error || 'Failed to register wholesaler account.');
+    }
   };
 
   return (

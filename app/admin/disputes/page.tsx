@@ -8,7 +8,7 @@ import DashboardNav from '@/components/shared/DashboardNav';
 
 export default function AdminDisputesPage() {
   const { user, isAuthenticated } = useAuthStore();
-  const { orders, updateStatus } = useOrderStore();
+  const { orders, completeOrder, fetchOrders } = useOrderStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -17,15 +17,21 @@ export default function AdminDisputesPage() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) router.push('/auth/admin');
-  }, [mounted, isAuthenticated, user, router]);
+    if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) {
+      router.push('/auth/admin');
+      return;
+    }
+    if (mounted && isAuthenticated && user?.role === 'ADMIN') {
+      fetchOrders();
+    }
+  }, [mounted, isAuthenticated, user, router, fetchOrders]);
 
   if (!mounted || !user) return null;
 
   const disputed = orders.filter(o => o.orderStatus === 'DISPUTED');
 
-  const handleResolve = (id: string) => {
-    updateStatus(id, 'COMPLETED');
+  const handleResolve = async (id: string) => {
+    await completeOrder(id);
     setResolving(null);
     setNote('');
   };

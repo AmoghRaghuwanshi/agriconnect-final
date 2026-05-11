@@ -20,8 +20,12 @@ export default function ConsumerProfilePage() {
   useEffect(() => {
     if (mounted && !isAuthenticated) {
       router.push('/auth/consumer');
+      return;
     }
-  }, [mounted, isAuthenticated, router]);
+    if (mounted && isAuthenticated && user?.role === 'CONSUMER') {
+      useOrderStore.getState().fetchOrders({ buyerId: user.id });
+    }
+  }, [mounted, isAuthenticated, user, router]);
 
   if (!mounted || !user) return null;
 

@@ -31,7 +31,14 @@ export default function FarmerDashboardPage() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    if (mounted && (!isAuthenticated || user?.role !== 'FARMER')) router.push('/auth/farmer');
+    if (mounted && (!isAuthenticated || user?.role !== 'FARMER')) {
+      router.push('/auth/farmer');
+      return;
+    }
+    if (mounted && isAuthenticated && user?.role === 'FARMER') {
+      useListingStore.getState().fetchListings();
+      useOrderStore.getState().fetchOrders({ farmerId: user.id });
+    }
   }, [mounted, isAuthenticated, user, router]);
 
   if (!mounted || !user) return null;

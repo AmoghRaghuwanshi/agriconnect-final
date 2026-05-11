@@ -15,7 +15,13 @@ export default function WholesalerDashboardPage() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    if (mounted && (!isAuthenticated || user?.role !== 'WHOLESALER')) router.push('/auth/wholesaler');
+    if (mounted && (!isAuthenticated || user?.role !== 'WHOLESALER')) {
+      router.push('/auth/wholesaler');
+      return;
+    }
+    if (mounted && isAuthenticated && user?.role === 'WHOLESALER') {
+      useOrderStore.getState().fetchOrders({ buyerId: user.id });
+    }
   }, [mounted, isAuthenticated, user, router]);
 
   if (!mounted || !user) return null;
