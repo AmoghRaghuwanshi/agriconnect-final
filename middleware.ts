@@ -8,10 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * 
  * 1. Blocks direct access to /api/* routes (when they exist)
  * 2. Sets security headers
- * 3. Provides a hook point for future server-side auth
- * 
- * When Supabase auth is configured, re-enable full middleware
- * by importing createMiddlewareClient from @supabase/auth-helpers-nextjs.
+ * 3. Provides a hook point for future server-side auth (Neon DB)
  */
 export async function middleware(req: NextRequest) {
   const response = NextResponse.next();

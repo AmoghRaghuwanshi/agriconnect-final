@@ -25,9 +25,9 @@ interface AuthStore {
 }
 
 /**
- * Demo auth store — works without Supabase.
+ * Demo auth store — works without a database.
  * Persists to localStorage so login survives refresh.
- * Will be replaced with real Supabase auth when keys are added.
+ * Can be upgraded to Neon DB-backed auth when needed.
  */
 import { useCartStore } from './cartStore';
 

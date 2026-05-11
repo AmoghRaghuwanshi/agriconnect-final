@@ -1,6 +1,5 @@
 import { apiChain } from '@/lib/utils/apiChain';
 import { sendEmail } from '@/lib/services/email/providers';
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 // ── Provider 1: Meta WhatsApp Cloud API ──────────────────────────────────
 async function sendViaMetaWhatsApp(
@@ -117,25 +116,12 @@ async function sendVia2Factor(
 
 // ── Provider 5: Email OTP fallback ────────────────────────────────────────
 async function sendViaEmailOTP(
-  phone: string,
-  otp: string
+  _phone: string,
+  _otp: string
 ): Promise<boolean | null> {
-  // For farmers who also have an email (rare — most only have phone)
-  const { data: user } = await supabaseAdmin
-    .from('users')
-    .select('email')
-    .eq('phone', phone)
-    .single();
-
-  if (!user?.email) return null;
-
-  const sent = await sendEmail(
-    user.email,
-    'AgriConnect OTP',
-    `<p>Your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>
-     <p>आपका OTP: <strong>${otp}</strong> है। 10 मिनट में expire हो जाएगा।</p>`
-  );
-  return sent ? true : null;
+  // Requires DB lookup for user email — not available in demo mode.
+  // When Neon DB is wired with a users table, re-enable this.
+  return null;
 }
 
 // ── Main OTP export ────────────────────────────────────────────────────────

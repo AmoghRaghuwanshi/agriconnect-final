@@ -1,4 +1,3 @@
-import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { sendEmail } from '@/lib/services/email/providers';
 import { sendWhatsApp } from '@/lib/services/otp/providers';
 
@@ -18,7 +17,7 @@ interface NotifPayload {
 
 /**
  * Central notification dispatcher.
- * 1. Always writes to `notifications` table (in-app bell).
+ * 1. Logs in-app notification (stub — wire to Neon DB when ready).
  * 2. Optionally sends email and/or WhatsApp based on user preferences.
  */
 export async function sendUserNotif({
@@ -33,14 +32,10 @@ export async function sendUserNotif({
   emailHtml,
   whatsappMessage,
 }: NotifPayload): Promise<void> {
-  // Always insert in-app notification
-  await supabaseAdmin.from('notifications').insert({
-    user_id: userId,
-    type,
-    title,
-    title_hi: titleHi,
-    payload: payload ?? {},
-    is_read: false,
+  // In-app notification — log for now, insert into Neon DB when schema is ready
+  console.log(`[notif] ${type} for user ${userId}: ${title}`, {
+    titleHi,
+    payload,
   });
 
   // Send email if provided
