@@ -36,126 +36,122 @@ export interface Order {
 
 interface OrderStore {
   orders: Order[];
-  addOrder: (order: Omit<Order, 'id' | 'createdAt'>) => string;
+  isLoaded: boolean;
+  fetchOrders: (params?: { buyerId?: string; farmerId?: string }) => Promise<void>;
+  addOrder: (order: Omit<Order, 'id' | 'createdAt'>) => Promise<string>;
   updateStatus: (id: string, status: OrderStatus) => void;
-  confirmOrder: (id: string) => void;
-  markOutForDelivery: (id: string) => void;
-  confirmDelivery: (id: string, receivedKg: number) => void;
-  completeOrder: (id: string) => void;
-  cancelOrder: (id: string) => void;
-  raiseDispute: (id: string, reason: string) => void;
-  addReview: (id: string, rating: number, comment: string) => void;
-  markPaid: (id: string, method: string) => void;
+  confirmOrder: (id: string) => Promise<void>;
+  markOutForDelivery: (id: string) => Promise<void>;
+  confirmDelivery: (id: string, receivedKg: number) => Promise<void>;
+  completeOrder: (id: string) => Promise<void>;
+  cancelOrder: (id: string) => Promise<void>;
+  raiseDispute: (id: string, reason: string) => Promise<void>;
+  addReview: (id: string, rating: number, comment: string) => Promise<void>;
+  markPaid: (id: string, method: string) => Promise<void>;
   getByBuyer: (buyerId: string) => Order[];
   getByFarmer: (farmerId: string) => Order[];
   getById: (id: string) => Order | undefined;
 }
 
-const now = new Date();
-const ago = (days: number) => new Date(now.getTime() - days * 86400000).toISOString();
-
-const SEED_ORDERS: Order[] = [
-  {
-    id: 'ORD-2041', buyerId: 'demo-consumer-001', buyerName: 'Priya Sharma',
-    farmerId: 'demo-farmer-001', farmerName: 'Raju Patel', farmName: 'Patel Organic Farm',
-    listingId: 'L001', cropName: 'Wheat (Lokwan)', orderType: 'B2C',
-    quantityKg: 25, pricePerKg: 28, totalAmount: 700,
-    orderStatus: 'PENDING', paymentStatus: 'PAID', paymentMethod: 'UPI',
-    deliveryAddress: { label: 'Home', line1: '123 MG Road', city: 'Bhopal', state: 'MP', pincode: '462001' },
-    createdAt: ago(1),
-  },
-  {
-    id: 'ORD-2038', buyerId: 'demo-wholesaler-001', buyerName: 'Rajesh Agarwal',
-    farmerId: 'demo-farmer-001', farmerName: 'Raju Patel', farmName: 'Patel Organic Farm',
-    listingId: 'L002', cropName: 'Basmati Rice', orderType: 'B2B',
-    quantityKg: 100, pricePerKg: 55, totalAmount: 5500,
-    orderStatus: 'OUT_FOR_DELIVERY', paymentStatus: 'PAID', paymentMethod: 'Credit',
-    deliveryAddress: { label: 'Warehouse', line1: 'Plot 45 Industrial Area', city: 'Indore', state: 'MP', pincode: '452001' },
-    createdAt: ago(3), confirmedAt: ago(2), outForDeliveryAt: ago(1),
-  },
-  {
-    id: 'ORD-2035', buyerId: 'demo-consumer-001', buyerName: 'Priya Sharma',
-    farmerId: 'demo-farmer-001', farmerName: 'Raju Patel', farmName: 'Patel Organic Farm',
-    listingId: 'L003', cropName: 'Onion (Red)', orderType: 'B2C',
-    quantityKg: 50, receivedKg: 48, pricePerKg: 18, totalAmount: 900,
-    orderStatus: 'COMPLETED', paymentStatus: 'PAID', paymentMethod: 'UPI',
-    deliveryAddress: { label: 'Home', line1: '123 MG Road', city: 'Bhopal', state: 'MP', pincode: '462001' },
-    createdAt: ago(6), confirmedAt: ago(5), outForDeliveryAt: ago(4), deliveredAt: ago(3), completedAt: ago(2),
-    review: { rating: 5, comment: 'Very fresh onions, accurate quantity!', createdAt: ago(2) },
-  },
-  {
-    id: 'ORD-2032', buyerId: 'demo-consumer-001', buyerName: 'Priya Sharma',
-    farmerId: 'demo-farmer-004', farmerName: 'Venkat Rao', farmName: 'Rao Spice Farm',
-    listingId: 'L006', cropName: 'Green Chili', orderType: 'B2C',
-    quantityKg: 5, receivedKg: 5, pricePerKg: 45, totalAmount: 225,
-    orderStatus: 'DELIVERED', paymentStatus: 'PAID', paymentMethod: 'UPI',
-    deliveryAddress: { label: 'Home', line1: '123 MG Road', city: 'Bhopal', state: 'MP', pincode: '462001' },
-    createdAt: ago(8), confirmedAt: ago(7), outForDeliveryAt: ago(6), deliveredAt: ago(5),
-  },
-  {
-    id: 'ORD-2029', buyerId: 'demo-consumer-001', buyerName: 'Priya Sharma',
-    farmerId: 'demo-farmer-002', farmerName: 'Suresh Kumar', farmName: 'Kumar Fresh Farms',
-    listingId: 'L004', cropName: 'Fresh Tomatoes', orderType: 'B2C',
-    quantityKg: 10, receivedKg: 10, pricePerKg: 15, totalAmount: 150,
-    orderStatus: 'COMPLETED', paymentStatus: 'PAID', paymentMethod: 'UPI',
-    deliveryAddress: { label: 'Home', line1: '123 MG Road', city: 'Bhopal', state: 'MP', pincode: '462001' },
-    createdAt: ago(10), confirmedAt: ago(9), outForDeliveryAt: ago(8), deliveredAt: ago(7), completedAt: ago(6),
-    review: { rating: 4, comment: 'Good tomatoes, slightly soft', createdAt: ago(6) },
-  },
-  {
-    id: 'ORD-2026', buyerId: 'demo-wholesaler-001', buyerName: 'Rajesh Agarwal',
-    farmerId: 'demo-farmer-005', farmerName: 'Dilip Sahu', farmName: 'Sahu Grains',
-    listingId: 'L007', cropName: 'Maize (Yellow)', orderType: 'B2B',
-    quantityKg: 500, receivedKg: 490, pricePerKg: 22, totalAmount: 11000,
-    orderStatus: 'COMPLETED', paymentStatus: 'PAID', paymentMethod: 'Credit',
-    deliveryAddress: { label: 'Warehouse', line1: 'Plot 45 Industrial Area', city: 'Indore', state: 'MP', pincode: '452001' },
-    createdAt: ago(14), confirmedAt: ago(13), outForDeliveryAt: ago(12), deliveredAt: ago(11), completedAt: ago(10),
-    review: { rating: 5, comment: 'Excellent quality maize, good packaging', createdAt: ago(10) },
-  },
-];
-
-let orderCounter = Math.max(2050, ...SEED_ORDERS.map(o => {
-  const n = parseInt(o.id.replace(/\D/g, ''));
-  return isNaN(n) ? 0 : n;
-}));
+async function apiAction(id: string, action: string, data?: Record<string, unknown>) {
+  try {
+    await fetch('/api/orders', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action, ...data }),
+    });
+  } catch (err) {
+    console.warn(`[orders] API ${action} failed:`, err);
+  }
+}
 
 export const useOrderStore = create<OrderStore>()(
   persist(
     (set, get) => ({
-      orders: SEED_ORDERS,
+      orders: [],
+      isLoaded: false,
 
-      addOrder: (order) => {
-        const id = `ORD-${++orderCounter}`;
-        set((s) => ({ orders: [{ ...order, id, createdAt: new Date().toISOString() }, ...s.orders] }));
-        return id;
+      fetchOrders: async (params) => {
+        try {
+          let url = '/api/orders';
+          if (params?.buyerId) url += `?buyerId=${params.buyerId}`;
+          else if (params?.farmerId) url += `?farmerId=${params.farmerId}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.orders && data.orders.length > 0) {
+            set({ orders: data.orders, isLoaded: true });
+          }
+        } catch (err) {
+          console.warn('[orders] API fetch failed:', err);
+        }
+      },
+
+      addOrder: async (order) => {
+        const tempId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        const newOrder = { ...order, id: tempId, createdAt: new Date().toISOString() };
+        set((s) => ({ orders: [newOrder, ...s.orders] }));
+
+        try {
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(order),
+          });
+          const data = await res.json();
+          if (data.id) {
+            set((s) => ({
+              orders: s.orders.map((o) => (o.id === tempId ? { ...o, id: data.id } : o)),
+            }));
+            return data.id;
+          }
+        } catch (err) {
+          console.warn('[orders] API create failed:', err);
+        }
+        return tempId;
       },
 
       updateStatus: (id, status) =>
         set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: status } : o)) })),
 
-      confirmOrder: (id) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'CONFIRMED' as const, confirmedAt: new Date().toISOString() } : o)) })),
+      confirmOrder: async (id) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'CONFIRMED' as const, confirmedAt: new Date().toISOString() } : o)) }));
+        await apiAction(id, 'confirm');
+      },
 
-      markOutForDelivery: (id) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'OUT_FOR_DELIVERY' as const, outForDeliveryAt: new Date().toISOString() } : o)) })),
+      markOutForDelivery: async (id) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'OUT_FOR_DELIVERY' as const, outForDeliveryAt: new Date().toISOString() } : o)) }));
+        await apiAction(id, 'ship');
+      },
 
-      confirmDelivery: (id, receivedKg) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'DELIVERED' as const, deliveredAt: new Date().toISOString(), receivedKg } : o)) })),
+      confirmDelivery: async (id, receivedKg) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'DELIVERED' as const, deliveredAt: new Date().toISOString(), receivedKg } : o)) }));
+        await apiAction(id, 'deliver', { receivedKg });
+      },
 
-      completeOrder: (id) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'COMPLETED' as const, completedAt: new Date().toISOString() } : o)) })),
+      completeOrder: async (id) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'COMPLETED' as const, completedAt: new Date().toISOString() } : o)) }));
+        await apiAction(id, 'complete');
+      },
 
-      cancelOrder: (id) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'CANCELLED' as const } : o)) })),
+      cancelOrder: async (id) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'CANCELLED' as const } : o)) }));
+        await apiAction(id, 'cancel');
+      },
 
-      raiseDispute: (id, reason) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'DISPUTED' as const, disputeReason: reason, disputeRaisedAt: new Date().toISOString() } : o)) })),
+      raiseDispute: async (id, reason) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, orderStatus: 'DISPUTED' as const, disputeReason: reason, disputeRaisedAt: new Date().toISOString() } : o)) }));
+        await apiAction(id, 'dispute', { reason });
+      },
 
-      addReview: (id, rating, comment) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, review: { rating, comment, createdAt: new Date().toISOString() }, orderStatus: 'COMPLETED' as const, completedAt: new Date().toISOString() } : o)) })),
+      addReview: async (id, rating, comment) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, review: { rating, comment, createdAt: new Date().toISOString() }, orderStatus: 'COMPLETED' as const, completedAt: new Date().toISOString() } : o)) }));
+        await apiAction(id, 'review', { rating, comment });
+      },
 
-      markPaid: (id, method) =>
-        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, paymentStatus: 'PAID' as const, paymentMethod: method } : o)) })),
+      markPaid: async (id, method) => {
+        set((s) => ({ orders: s.orders.map((o) => (o.id === id ? { ...o, paymentStatus: 'PAID' as const, paymentMethod: method } : o)) }));
+        await apiAction(id, 'pay', { method });
+      },
 
       getByBuyer: (buyerId) => get().orders.filter((o) => o.buyerId === buyerId),
       getByFarmer: (farmerId) => get().orders.filter((o) => o.farmerId === farmerId),

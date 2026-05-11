@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
 
 export default function ConsumerRegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
@@ -10,16 +12,22 @@ export default function ConsumerRegisterPage() {
 
   const update = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
 
+  const register = useAuthStore((s) => s.register);
+  const router = useRouter();
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (form.password !== form.confirm) { setError('Passwords do not match.'); return; }
     if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setError('Registration coming soon. Use Demo Login on the sign-in page.');
-    }, 800);
+    const result = await register({ name: form.name, email: form.email, password: form.password, role: 'CONSUMER' });
+    setLoading(false);
+    if (result.success) {
+      router.push('/profile');
+    } else {
+      setError(result.error || 'Registration failed.');
+    }
   };
 
   return (

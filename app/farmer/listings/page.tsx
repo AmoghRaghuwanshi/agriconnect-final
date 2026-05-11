@@ -16,10 +16,13 @@ export default function FarmerListingsPage() {
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<FilterTab>('ALL');
 
+  const fetchListings = useListingStore((s) => s.fetchListings);
+
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     if (mounted && (!isAuthenticated || user?.role !== 'FARMER')) router.push('/auth/farmer');
-  }, [mounted, isAuthenticated, user, router]);
+    if (mounted && user) fetchListings(user.id);
+  }, [mounted, isAuthenticated, user, router, fetchListings]);
 
   if (!mounted || !user) return null;
 

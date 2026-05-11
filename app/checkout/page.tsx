@@ -46,7 +46,7 @@ export default function CheckoutPage() {
 
   const subtotal = total();
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!address.line1 || !address.city || !address.state || !address.pincode) {
       setAddressError('Please fill in all required address fields.');
       return;
@@ -60,12 +60,12 @@ export default function CheckoutPage() {
 
     // Group items by farmer and create one order per farmer-item
     const orderIds: string[] = [];
-    cartItems.forEach(item => {
+    for (const item of cartItems) {
       // Look up farmer details from the listing if available
       const listing = getListingById(item.listing_id);
       const farmName = listing?.farmName ?? 'Farm';
 
-      const oid = addOrder({
+      const oid = await addOrder({
         buyerId: user.id, buyerName: user.name,
         farmerId: item.farmer_id, farmerName: item.farmer_name, farmName,
         listingId: item.listing_id, cropName: item.crop_name,
@@ -75,7 +75,7 @@ export default function CheckoutPage() {
         deliveryAddress: address,
       });
       orderIds.push(oid);
-    });
+    }
 
     // Store order IDs in sessionStorage — cart will be cleared AFTER payment succeeds
     sessionStorage.setItem('checkout_order_ids', JSON.stringify(orderIds));

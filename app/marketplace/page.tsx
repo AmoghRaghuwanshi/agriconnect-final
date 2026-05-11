@@ -45,7 +45,12 @@ export default function MarketplacePage() {
   const [mounted, setMounted] = useState(false);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => { setMounted(true); }, []);
+  const fetchListings = useListingStore((s) => s.fetchListings);
+
+  useEffect(() => {
+    setMounted(true);
+    fetchListings(); // Load from Neon DB
+  }, [fetchListings]);
 
   // Get only active listings (visible to consumers)
   const activeListings = useMemo(() =>

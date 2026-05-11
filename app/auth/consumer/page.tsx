@@ -13,14 +13,19 @@ export default function ConsumerLoginPage() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
 
+  const loginWithCredentials = useAuthStore((s) => s.loginWithCredentials);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setError('Email login coming soon. Use the Demo Login button above.');
-    }, 600);
+    const result = await loginWithCredentials(email, password);
+    setLoading(false);
+    if (result.success) {
+      router.push('/profile');
+    } else {
+      setError(result.error || 'Login failed. Check your credentials.');
+    }
   };
 
   const handleDemoLogin = () => {

@@ -73,10 +73,13 @@ export default function ConsumerOrdersPage() {
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<Tab>('ALL');
 
+  const fetchOrders = useOrderStore((s) => s.fetchOrders);
+
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     if (mounted && !isAuthenticated) router.push('/auth/consumer');
-  }, [mounted, isAuthenticated, router]);
+    if (mounted && user) fetchOrders({ buyerId: user.id });
+  }, [mounted, isAuthenticated, router, user, fetchOrders]);
 
   if (!mounted || !user) return null;
 
