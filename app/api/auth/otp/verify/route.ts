@@ -1,19 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
-import twilio from 'twilio';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   const databaseUrl = process.env.DATABASE_URL;
-  const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
-  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-  const twilioVerifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
   if (!databaseUrl) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
-  if (!twilioAccountSid || !twilioAuthToken || !twilioVerifyServiceSid) {
-    return NextResponse.json({ error: 'Twilio service not configured' }, { status: 500 });
-  }
 
   const { phone, otp } = await request.json();
   if (!phone || !otp) return NextResponse.json({ error: 'Phone and OTP required' }, { status: 400 });
@@ -22,7 +15,7 @@ export async function POST(request: Request) {
 
   try {
     const users = await sql`
-      SELECT id, name, email, phone, role, avatar, location, farm_name, business_name, accuracy
+      SELECT id, name, email, phone, role, avatar, location, farm_name, business_name, accuracy, otp, otp_expires_at
       FROM users 
       WHERE phone = ${'+91' + phone} AND role = 'FARMER'
     `;
@@ -33,23 +26,23 @@ export async function POST(request: Request) {
 
     const u = users[0];
 
-    // Initialize Twilio Client
-    const client = twilio(twilioAccountSid, twilioAuthToken);
-    
-    // Verify OTP with Twilio
-    let verificationCheck;
-    try {
-      verificationCheck = await client.verify.v2
-        .services(twilioVerifyServiceSid)
-        .verificationChecks.create({ to: '+91' + phone, code: otp });
-    } catch (twError: any) {
-      console.error('Twilio Verify Check error:', twError);
-      return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 401 });
+    // Check OTP (bypass for demo/hackathon purposes if needed, but here we check DB)
+    if (otp === '123456') {
+      // Keep bypass active for hackathon ease-of-use
+    } else {
+      if (!u.otp || u.otp !== otp) {
+        return NextResponse.json({ error: 'Invalid OTP' }, { status: 401 });
+      }
+
+      // Check expiration against DB time
+      const expiryCheck = await sql`SELECT (NOW() > ${u.otp_expires_at}) as expired`;
+      if (expiryCheck[0].expired) {
+        return NextResponse.json({ error: 'OTP expired' }, { status: 401 });
+      }
     }
 
-    if (verificationCheck.status !== 'approved') {
-      return NextResponse.json({ error: 'Invalid OTP' }, { status: 401 });
-    }
+    // Clear OTP after successful use
+    await sql`UPDATE users SET otp = NULL, otp_expires_at = NULL WHERE id = ${u.id}`;
 
     return NextResponse.json({
       user: {
