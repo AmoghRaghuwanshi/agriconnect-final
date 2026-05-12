@@ -1,13 +1,19 @@
 import { neon } from '@neondatabase/serverless';
 import { NextResponse } from 'next/server';
-import { sendOTP } from '@/lib/services/otp/providers';
+import twilio from 'twilio';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   const databaseUrl = process.env.DATABASE_URL;
+  const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioVerifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
   if (!databaseUrl) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
+  if (!twilioAccountSid || !twilioAuthToken || !twilioVerifyServiceSid) {
+    return NextResponse.json({ error: 'Twilio service not configured' }, { status: 500 });
+  }
 
   const { phone } = await request.json();
   if (!phone || phone.length !== 10) {
@@ -30,30 +36,22 @@ export async function POST(request: Request) {
       `;
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Initialize Twilio Client
+    const client = twilio(twilioAccountSid, twilioAuthToken);
 
-    // Save OTP to DB for verification (using DB time for reliability)
-    await sql`UPDATE users SET otp = ${otp}, otp_expires_at = NOW() + interval '10 minutes' WHERE id = ${userId}`;
+    // Send OTP via Twilio Verify
+    const verification = await client.verify.v2
+      .services(twilioVerifyServiceSid)
+      .verifications.create({ to: '+91' + phone, channel: 'sms' });
 
-    // Send OTP via multi-provider chain (WhatsApp -> Fast2SMS -> Twilio -> 2Factor)
-    const success = await sendOTP('+91' + phone, otp);
-
-    if (success) {
+    if (verification.status === 'pending') {
       return NextResponse.json({ success: true, message: 'OTP sent successfully' });
     } else {
-      console.warn('All OTP providers failed, but proceeding in demo mode with code printed to server logs.');
-      console.log(`[DEMO MODE] OTP for ${phone}: ${otp}`);
-      // For hackathon/demo purposes, we still return success so the user can see the OTP in logs if needed, 
-      // or we can just return success and let them use the OTP if they know it.
-      return NextResponse.json({ 
-        success: true, 
-        message: 'OTP sent successfully (Demo Mode)',
-        // dev_only_otp: process.env.NODE_ENV === 'development' ? otp : undefined 
-      });
+      console.error('Twilio Error Status:', verification.status);
+      return NextResponse.json({ error: 'Failed to send OTP via SMS.' }, { status: 500 });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Send OTP error:', error);
-    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to process request' }, { status: 500 });
   }
 }
