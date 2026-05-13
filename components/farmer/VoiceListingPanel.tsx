@@ -12,6 +12,10 @@ export interface ListingFormFields {
   pricePerKg?: string;
   harvestDate?: string;
   isOrganic?: boolean;
+  minOrderKg?: string;
+  storageType?: string;
+  duration?: number;
+  description?: string;
 }
 
 interface VoiceListingPanelProps {
@@ -166,9 +170,27 @@ export default function VoiceListingPanel({ onExtracted, pincode }: VoiceListing
       }
       if (data.params.harvest_date) {
         fields.harvestDate = data.params.harvest_date;
+        filledKeys.push('harvestDate');
       }
       if (data.params.organic) {
         fields.isOrganic = true;
+        filledKeys.push('organic');
+      }
+      if (data.params.min_order_kg) {
+        fields.minOrderKg = String(data.params.min_order_kg);
+        filledKeys.push('minOrder');
+      }
+      if (data.params.storage_type) {
+        fields.storageType = data.params.storage_type;
+        filledKeys.push('storage');
+      }
+      if (data.params.duration_days) {
+        fields.duration = data.params.duration_days;
+        filledKeys.push('duration');
+      }
+      if (data.params.description) {
+        fields.description = data.params.description;
+        filledKeys.push('description');
       }
 
       onExtracted(fields);

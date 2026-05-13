@@ -8,18 +8,21 @@ export function getVoiceResponse(
   params: Record<string, unknown>
 ): string {
   const crop = (params.crop_name as string) || '';
+  const variety = (params.variety as string) || '';
   const qty = params.quantity_kg as number | undefined;
   const price = params.price_per_kg as number | undefined;
+
+  const cropLabel = variety ? `${variety} ${crop}` : crop;
 
   switch (intent) {
     case 'CREATE_LISTING':
       if (crop && qty && price) {
-        return `${qty} किलो ${crop}, ${price} रुपए किलो — listing बना रहा हूं।`;
+        return `${qty} किलो ${cropLabel}, ${price} रुपए किलो — listing बना रहा हूं।`;
       }
       if (crop) {
-        return `${crop} की listing बनाते हैं। quantity और price बताइए।`;
+        return `${cropLabel} की listing बनाते हैं। quantity और price बताइए।`;
       }
-      return 'Listing बनाते हैं। Crop, quantity, और price बताइए।';
+      return 'Listing बनाते हैं। Crop, variety, quantity, और price बताइए।';
 
     case 'CHECK_MANDI_PRICE':
       return crop
@@ -45,6 +48,9 @@ export function getVoiceResponse(
       return 'Listing चालू कर रहा हूं।';
 
     case 'EDIT_PRICE':
+      if (price && crop) {
+        return `${cropLabel} का price ${price} रुपए कर रहा हूं।`;
+      }
       return price
         ? `Price ${price} रुपए कर रहा हूं।`
         : 'Price बदलने के लिए नया price बताइए।';

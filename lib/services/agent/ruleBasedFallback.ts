@@ -40,6 +40,40 @@ const CROP_MAP: Record<string, string> = {
   'हल्दी': 'Turmeric',
 };
 
+// ── Variety mapping (Hindi/Hinglish/English → English) ───────────────────
+const VARIETY_MAP: Record<string, string> = {
+  // Wheat varieties
+  sharbati: 'Sharbati', शरबती: 'Sharbati',
+  lokwan: 'Lokwan', लोकवान: 'Lokwan', lokvan: 'Lokwan',
+  desi: 'Desi', देसी: 'Desi',
+  sona: 'Sona', सोना: 'Sona',
+  tukdi: 'Tukdi', तुकड़ी: 'Tukdi',
+  malwi: 'Malwi', मालवी: 'Malwi',
+  // Onion varieties
+  nashik: 'Nashik', नाशिक: 'Nashik', nasik: 'Nashik',
+  red: 'Red', लाल: 'Red', laal: 'Red',
+  white: 'White', सफेद: 'White', safed: 'White',
+  // Rice varieties
+  basmati: 'Basmati', बासमती: 'Basmati',
+  parmal: 'Parmal', परमल: 'Parmal',
+  'sona masoori': 'Sona Masoori', mansoori: 'Sona Masoori', masoori: 'Sona Masoori',
+  // Tomato varieties
+  hybrid: 'Hybrid', हाइब्रिड: 'Hybrid',
+  'desi tamatar': 'Desi Tamatar',
+  // Potato varieties
+  jyoti: 'Jyoti', ज्योति: 'Jyoti',
+  chipsona: 'Chipsona', चिप्सोना: 'Chipsona',
+  // Chili varieties
+  teja: 'Teja', तेजा: 'Teja',
+  byadgi: 'Byadgi', ब्याडगी: 'Byadgi',
+  // Cotton varieties
+  bt: 'BT Cotton',
+  // Sugarcane varieties
+  co: 'CO',
+  // Generic quality descriptors
+  organic: 'Organic', जैविक: 'Organic', jaivik: 'Organic',
+};
+
 // ── Hindi number words ─────────────────────────────────────────────────────
 const HINDI_NUMBERS: Record<string, number> = {
   ek: 1, do: 2, teen: 3, char: 4, paanch: 5,
@@ -74,9 +108,74 @@ function normalizeCrop(text: string): string | null {
   return null;
 }
 
+function extractVariety(text: string, crop?: string | null): string | null {
+  const lower = text.toLowerCase();
+
+  // Find all variety matches in the text
+  const matches: { key: string; value: string; index: number }[] = [];
+  for (const [key, val] of Object.entries(VARIETY_MAP)) {
+    const idx = lower.indexOf(key);
+    if (idx !== -1) {
+      matches.push({ key, value: val, index: idx });
+    }
+  }
+
+  if (matches.length === 0) return null;
+
+  // Sort by position in text — prefer earlier matches
+  matches.sort((a, b) => a.index - b.index);
+
+  // If crop is known, look for variety near the crop name
+  if (crop) {
+    const cropLower = crop.toLowerCase();
+    const cropIdx = lower.indexOf(cropLower);
+    if (cropIdx === -1) {
+      // Try the Hindi key for the crop
+      for (const [key, val] of Object.entries(CROP_MAP)) {
+        if (val.toLowerCase() === cropLower) {
+          const hiIdx = lower.indexOf(key);
+          if (hiIdx !== -1) {
+            // Find variety closest to this crop mention
+            let bestMatch: typeof matches[0] | null = null;
+            let bestDist = Infinity;
+            for (const m of matches) {
+              const dist = Math.abs(m.index - hiIdx);
+              if (dist < bestDist && dist < 40) {
+                bestDist = dist;
+                bestMatch = m;
+              }
+            }
+            if (bestMatch) return bestMatch.value;
+          }
+        }
+      }
+    } else {
+      // Find variety closest to crop mention in text
+      let bestMatch: typeof matches[0] | null = null;
+      let bestDist = Infinity;
+      for (const m of matches) {
+        const dist = Math.abs(m.index - cropIdx);
+        if (dist < bestDist && dist < 40) {
+          bestDist = dist;
+          bestMatch = m;
+        }
+      }
+      if (bestMatch) return bestMatch.value;
+    }
+  }
+
+  // Fallback: return the first variety match
+  return matches[0].value;
+}
+
 // ── All quintal spelling variants ─────────────────────────────────────────
 const QUINTAL_PATTERN = /quintal|quintl|quintle|kuntal|क्विंटल|क्विन्टल|कुंतल|कुन्तल|कुंटल|क़ुंतल|क़्विंटल/;
 const QUINTAL_RE_SRC = 'quintal|quintl|quintle|kuntal|क्विंटल|क्विन्टल|कुंतल|कुन्तल|कुंटल|क़ुंतल|क़्विंटल';
+
+// ── Helper: check if text contains "view/show/tell" intent words ──────────
+function hasViewIntent(text: string): boolean {
+  return /(?:dikha|dekho|dekha|dekhe|batao|bata|bataye|दिखाओ|दिखाना|देखो|देखना|देखें|बताओ|बताना|बताएं|show|check|dekh)\b/i.test(text);
+}
 
 // ── Main rule-based parser ─────────────────────────────────────────────────
 export function ruleBasedIntent(input: string): IntentResult {
@@ -86,148 +185,235 @@ export function ruleBasedIntent(input: string): IntentResult {
     return { intent: 'HELP', params: {}, confidence: 0 };
   }
 
-  // ── CREATE_LISTING ────────────────────────────────────────────────────────
-  const isListing =
-    text.includes('bech') ||
-    text.includes('bach') ||  // voice misrecognition of bechna
-    text.includes('sell') ||
-    text.includes('sale') ||
-    text.includes('listing') ||
-    text.includes('daalna') ||
-    text.includes('upload') ||
-    // Devanagari
-    text.includes('बेच') ||
-    text.includes('बच') ||   // voice often hears बचना instead of बेचना
-    text.includes('बिक्री') ||
-    text.includes('डालना') ||
-    text.includes('लिस्टिंग') ||
-    // Quantity + crop often implies listing even without "sell" keyword
-    text.includes('भाव') ||  // bhav = price/rate
-    text.includes('दाम') ||  // daam = price
-    text.includes('रेट');    // rate
+  const isViewVerb = hasViewIntent(text);
 
-  if (isListing) {
-    const crop = normalizeCrop(text);
-    const qtyKg = extractQuantityKg(text);
-    const pricePerKg = extractPricePerKg(text);
-
-    return {
-      intent: 'CREATE_LISTING',
-      params: {
-        crop_name: crop ?? undefined,
-        quantity_kg: qtyKg ?? undefined,
-        price_per_kg: pricePerKg ?? undefined,
-      },
-      confidence: crop ? 0.85 : 0.6,
-    };
-  }
-
-  // ── CHECK_MANDI_PRICE ─────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // CHECK_MANDI_PRICE — checked FIRST to avoid overlap with CREATE_LISTING
+  // ═══════════════════════════════════════════════════════════════════════
   const isMandi =
     text.includes('mandi') ||
-    text.includes('bhav') ||
-    text.includes('rate') ||
-    text.includes('daam') ||
-    text.includes('price') ||
-    text.includes('kitne ka') ||
-    // Devanagari
     text.includes('मंडी') ||
-    text.includes('कितने का');
+    text.includes('bajar') ||
+    text.includes('बाजार') ||
+    text.includes('market') ||
+    text.includes('मार्केट') ||
+    // Price inquiry with show/tell intent (NOT sell/create intent)
+    (isViewVerb && (
+      text.includes('bhav') ||
+      text.includes('भाव') ||
+      text.includes('daam') ||
+      text.includes('दाम') ||
+      text.includes('rate') ||
+      text.includes('रेट') ||
+      text.includes('price') ||
+      text.includes('kitne ka') ||
+      text.includes('कितने का') ||
+      text.includes('kya bhav') ||
+      text.includes('क्या भाव') ||
+      text.includes('kya rate') ||
+      text.includes('क्या रेट')
+    ));
 
   if (isMandi) {
     const crop = normalizeCrop(text);
     return {
       intent: 'CHECK_MANDI_PRICE',
       params: { crop_name: crop ?? undefined },
-      confidence: crop ? 0.9 : 0.7,
+      confidence: crop ? 0.9 : 0.75,
     };
   }
 
-  // ── VIEW_ORDERS ───────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // VIEW_ORDERS
+  // ═══════════════════════════════════════════════════════════════════════
   if (
     text.includes('order') ||
     text.includes('kharida') ||
     text.includes('booking') ||
+    text.includes('khareed') ||
+    text.includes('खरीद') ||
     // Devanagari
     text.includes('ऑर्डर') ||
     text.includes('आर्डर') ||
     text.includes('खरीदा') ||
-    text.includes('बुकिंग')
+    text.includes('बुकिंग') ||
+    text.includes('order dikhao') ||
+    text.includes('ऑर्डर दिखाओ')
   ) {
     return { intent: 'VIEW_ORDERS', params: {}, confidence: 0.85 };
   }
 
-  // ── MARK_OUT_FOR_DELIVERY ─────────────────────────────────────────────────
-  if (
-    text.includes('nikal') ||
-    text.includes('delivery') ||
-    text.includes('pahunch') ||
-    text.includes('ja raha')
-  ) {
-    return { intent: 'MARK_OUT_FOR_DELIVERY', params: {}, confidence: 0.8 };
-  }
-
-  // ── VIEW_INCOME ───────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // VIEW_INCOME
+  // ═══════════════════════════════════════════════════════════════════════
   if (
     text.includes('kamai') ||
     text.includes('income') ||
     text.includes('kamaya') ||
     text.includes('paise') ||
     text.includes('earnings') ||
+    text.includes('aamdani') ||
+    text.includes('नफा') ||
+    text.includes('profit') ||
     // Devanagari
     text.includes('कमाई') ||
     text.includes('पैसे') ||
-    text.includes('आमदनी')
+    text.includes('आमदनी') ||
+    text.includes('कितना पैसा') ||
+    text.includes('कितना कमाया') ||
+    text.includes('nikala') ||
+    text.includes('निकाला')
   ) {
-    return { intent: 'VIEW_INCOME', params: {}, confidence: 0.85 };
+    return { intent: 'VIEW_INCOME', params: {}, confidence: 0.88 };
   }
 
-  // ── VIEW_SCORE ────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // VIEW_SCORE
+  // ═══════════════════════════════════════════════════════════════════════
   if (
     text.includes('score') ||
     text.includes('rating') ||
     text.includes('review') ||
+    text.includes('star') ||
+    text.includes('point') ||
+    text.includes('ank') ||
+    text.includes('feedback') ||
     // Devanagari
     text.includes('स्कोर') ||
-    text.includes('रेटिंग')
+    text.includes('रेटिंग') ||
+    text.includes('तारा') ||
+    text.includes('अंक') ||
+    text.includes('फीडबैक')
   ) {
     return { intent: 'VIEW_SCORE', params: {}, confidence: 0.85 };
   }
 
-  // ── PAUSE_LISTING ─────────────────────────────────────────────────────────
-  if (text.includes('band') || text.includes('pause') || text.includes('rok')) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // MARK_OUT_FOR_DELIVERY
+  // ═══════════════════════════════════════════════════════════════════════
+  if (
+    text.includes('nikal') ||
+    text.includes('delivery') ||
+    text.includes('pahunch') ||
+    text.includes('ja raha') ||
+    text.includes('dispatch') ||
+    text.includes('bhejna') ||
+    text.includes('ready') ||
+    // Devanagari
+    text.includes('भेजना') ||
+    text.includes('भेज') ||
+    text.includes('डिस्पैच') ||
+    text.includes('रेडी') ||
+    text.includes('निकालना')
+  ) {
+    return { intent: 'MARK_OUT_FOR_DELIVERY', params: {}, confidence: 0.8 };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PAUSE_LISTING
+  // ═══════════════════════════════════════════════════════════════════════
+  if (
+    text.includes('band') ||
+    text.includes('pause') ||
+    text.includes('rok') ||
+    text.includes('रोक') ||
+    text.includes('बंद')
+  ) {
     return { intent: 'PAUSE_LISTING', params: {}, confidence: 0.75 };
   }
 
-  // ── RESUME_LISTING ────────────────────────────────────────────────────────
-  if (text.includes('shuru') || text.includes('resume') || text.includes('chalu')) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // RESUME_LISTING
+  // ═══════════════════════════════════════════════════════════════════════
+  if (
+    text.includes('shuru') ||
+    text.includes('resume') ||
+    text.includes('chalu') ||
+    text.includes('शुरू') ||
+    text.includes('चालू') ||
+    text.includes('शुरु')
+  ) {
     return { intent: 'RESUME_LISTING', params: {}, confidence: 0.75 };
   }
 
-  // ── EDIT_PRICE ────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // EDIT_PRICE — must come before CREATE_LISTING since it has price words
+  // ═══════════════════════════════════════════════════════════════════════
   if (
-    (text.includes('price') || text.includes('rate') || text.includes('daam')) &&
-    (text.includes('change') || text.includes('badal') || text.includes('update'))
+    (text.includes('price') || text.includes('rate') || text.includes('daam') ||
+      text.includes('दाम') || text.includes('रेट')) &&
+    (text.includes('change') || text.includes('badal') || text.includes('badhao') ||
+      text.includes('ghatao') || text.includes('update') ||
+      text.includes('बदल') || text.includes('बढ़ाओ') || text.includes('घटाओ') ||
+      text.includes('बदलाव'))
   ) {
     const price = extractPricePerKg(text);
     const crop = normalizeCrop(text);
     return {
       intent: 'EDIT_PRICE',
       params: { crop_name: crop ?? undefined, price_per_kg: price ?? undefined },
-      confidence: 0.75,
+      confidence: 0.78,
     };
   }
 
-  // ── DEFAULT: Guess CREATE_LISTING if crop or quantity present ────────────
-  const crop = normalizeCrop(text);
-  const qtyKg = extractQuantityKg(text);
-  const pricePerKg = extractPricePerKg(text);
+  // ═══════════════════════════════════════════════════════════════════════
+  // CREATE_LISTING — only when strong sell/create signals present
+  // ═══════════════════════════════════════════════════════════════════════
+  const isListing =
+    text.includes('bech') ||
+    text.includes('bach') ||      // voice misrecognition of bechna
+    text.includes('sell') ||
+    text.includes('sale') ||
+    text.includes('listing') ||
+    text.includes('daalna') ||
+    text.includes('upload') ||
+    text.includes('laga') ||      // lagana = to list
+    text.includes('bejna') ||     // alt spelling
+    // Devanagari
+    text.includes('बेच') ||
+    text.includes('बच') ||        // voice often hears बचना instead of बेचना
+    text.includes('बिक्री') ||
+    text.includes('डालना') ||
+    text.includes('लिस्टिंग') ||
+    text.includes('लगा');         // लगाना
 
-  if (crop || qtyKg || pricePerKg) {
+  // Also detect listing intent when crop+qty/price present without view intent
+  const crop = normalizeCrop(text);
+  const hasCropAndDetails = crop !== null && (
+    extractQuantityKg(text) !== null ||
+    extractPricePerKg(text) !== null
+  );
+
+  if (isListing || (hasCropAndDetails && !isViewVerb && !text.includes('mandi') && !text.includes('मंडी'))) {
+    const qtyKg = extractQuantityKg(text);
+    const pricePerKg = extractPricePerKg(text);
+    const variety = extractVariety(text, crop);
+
     return {
       intent: 'CREATE_LISTING',
       params: {
         crop_name: crop ?? undefined,
+        variety: variety ?? undefined,
+        quantity_kg: qtyKg ?? undefined,
+        price_per_kg: pricePerKg ?? undefined,
+      },
+      confidence: crop ? (variety ? 0.9 : 0.82) : 0.55,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // DEFAULT: Guess CREATE_LISTING if crop or quantity present
+  // ═══════════════════════════════════════════════════════════════════════
+  if (crop || extractQuantityKg(text) || extractPricePerKg(text)) {
+    const qtyKg = extractQuantityKg(text);
+    const pricePerKg = extractPricePerKg(text);
+    const variety = extractVariety(text, crop);
+
+    return {
+      intent: 'CREATE_LISTING',
+      params: {
+        crop_name: crop ?? undefined,
+        variety: variety ?? undefined,
         quantity_kg: qtyKg ?? undefined,
         price_per_kg: pricePerKg ?? undefined,
       },

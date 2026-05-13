@@ -1,18 +1,34 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useVoiceAgent } from '@/hooks/useVoiceAgent';
 import styles from './MicFAB.module.css';
 
 /**
- * MicFAB — Floating Action Button for farmer voice commands.
- * Provides STT (Hindi) → NLP (rule-based) → TTS (Hindi) → Navigation.
+ * MicFAB — Premium Floating Action Button for farmer voice commands.
+ * Provides STT (Hindi) → NLP (Gemini / Groq / rule-based) → TTS (Hindi) → Navigation.
+ * Available on every farmer page via farmer layout.
  */
 export default function MicFAB() {
   const router = useRouter();
   const { state, transcript, response, action, isSupported, startListening, stopListening, reset } = useVoiceAgent({ useGemini: true });
   const actionHandled = useRef(false);
+  const [minimized, setMinimized] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+
+  // Show hint tooltip briefly on first render
+  useEffect(() => {
+    const seen = localStorage.getItem('agriconnect-mic-hint');
+    if (!seen) {
+      const t = setTimeout(() => setShowHint(true), 3000);
+      const t2 = setTimeout(() => {
+        setShowHint(false);
+        localStorage.setItem('agriconnect-mic-hint', 'done');
+      }, 8000);
+      return () => { clearTimeout(t); clearTimeout(t2); };
+    }
+  }, []);
 
   // Navigate after TTS finishes speaking
   useEffect(() => {
@@ -34,6 +50,8 @@ export default function MicFAB() {
   useEffect(() => {
     if (state === 'LISTENING') {
       actionHandled.current = false;
+      setMinimized(false);
+      setShowHint(false);
     }
   }, [state]);
 
@@ -46,6 +64,8 @@ export default function MicFAB() {
       startListening();
     }
   };
+
+  const isActive = state !== 'IDLE';
 
   const fabClass = [
     styles.fab,
@@ -62,17 +82,43 @@ export default function MicFAB() {
     state === 'SPEAKING' ? '🔊' :
     state === 'ERROR' ? '❌' : '🎤';
 
-  // FIX: Always show bubble when not IDLE (even without transcript yet)
-  const showBubble = state !== 'IDLE';
+  const stateLabel =
+    state === 'LISTENING' ? 'सुन रहा हूं... / Listening...' :
+    state === 'PROCESSING' ? 'समझ रहा हूं... / Processing...' :
+    state === 'SPEAKING' ? '✅ समझ गया / Understood' :
+    state === 'ERROR' ? '⚠️ Error' : '';
+
+  // Always show bubble when not IDLE (even without transcript yet)
+  const showBubble = isActive && !minimized;
 
   return (
     <div className={styles['fab-container']}>
+      {/* Hint tooltip */}
+      {showHint && state === 'IDLE' && (
+        <div className={styles.hint} onClick={() => setShowHint(false)}>
+          <span className={styles.hintIcon}>🎤</span>
+          <span>बोलकर listing बनाएं<br /><small>Tap to speak in Hindi</small></span>
+        </div>
+      )}
+
       {/* Transcript / Response Bubble */}
       {showBubble && (
         <div className={styles.bubble}>
+          {/* Minimize button */}
+          <button
+            className={styles.bubbleClose}
+            onClick={(e) => { e.stopPropagation(); setMinimized(true); }}
+            aria-label="Minimize"
+          >
+            ✕
+          </button>
+
+          {/* State label */}
+          <div className={styles.bubbleLabel}>{stateLabel}</div>
+
+          {/* Content based on state */}
           {state === 'LISTENING' && (
             <>
-              <div className={styles.bubbleLabel}>सुन रहा हूं... / Listening...</div>
               <div className={styles.bubbleText}>
                 {transcript || 'बोलिए... / Speak now...'}
               </div>
@@ -82,28 +128,39 @@ export default function MicFAB() {
                 <div className={styles.waveBar} />
                 <div className={styles.waveBar} />
                 <div className={styles.waveBar} />
+                <div className={styles.waveBar} />
+                <div className={styles.waveBar} />
               </div>
             </>
           )}
+
           {state === 'PROCESSING' && (
             <>
-              <div className={styles.bubbleLabel}>समझ रहा हूं... / Processing...</div>
               <div className={styles.bubbleText}>{transcript}</div>
+              <div className={styles.processingDots}>
+                <span /><span /><span />
+              </div>
             </>
           )}
+
           {state === 'SPEAKING' && (
-            <>
-              <div className={styles.bubbleLabel}>✅ समझ गया / Understood</div>
-              <div className={styles.bubbleResponse}>{response}</div>
-            </>
+            <div className={styles.bubbleResponse}>{response}</div>
           )}
+
           {state === 'ERROR' && (
-            <>
-              <div className={styles.bubbleLabel}>⚠️ Error</div>
-              <div className={styles.bubbleText}>{response || 'Something went wrong. Tap mic to retry.'}</div>
-            </>
+            <div className={styles.bubbleText}>
+              {response || 'Something went wrong. Tap mic to retry.'}
+            </div>
           )}
         </div>
+      )}
+
+      {/* Ripple rings when listening */}
+      {state === 'LISTENING' && (
+        <>
+          <div className={styles.ripple1} />
+          <div className={styles.ripple2} />
+        </>
       )}
 
       {/* FAB Button */}
@@ -113,7 +170,7 @@ export default function MicFAB() {
         aria-label={state === 'LISTENING' ? 'रोकें / Stop' : 'बोलें / Speak'}
         title={state === 'LISTENING' ? 'Stop listening' : 'Speak a command in Hindi'}
       >
-        {icon}
+        <span className={styles.fabIconWrap}>{icon}</span>
       </button>
     </div>
   );

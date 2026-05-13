@@ -42,6 +42,14 @@ VARIETY EXTRACTION:
 "Sharbati gehun" → crop_name=Wheat, variety=Sharbati
 "Lokwan wheat" → crop_name=Wheat, variety=Lokwan
 "Nashik red onion" → crop_name=Onion, variety=Nashik Red
+"Basmati chawal" → crop_name=Rice, variety=Basmati
+"Sona masoori rice" → crop_name=Rice, variety=Sona Masoori
+"Desi tamatar" → crop_name=Tomato, variety=Desi
+"Jyoti aalu" → crop_name=Potato, variety=Jyoti
+"Teja mirch" → crop_name=Chili, variety=Teja
+"BT kapas" → crop_name=Cotton, variety=BT Cotton
+If no variety is mentioned, set variety to null.
+Common variety words: Sharbati, Lokwan, Desi, Sona, Tukdi, Malwi (wheat); Nashik, Red, White (onion); Basmati, Parmal, Sona Masoori (rice); Hybrid, Desi (tomato); Jyoti, Chipsona (potato); Teja, Byadgi (chili)
 
 CATEGORY AUTO-ASSIGN:
 Wheat/Rice/Maize/Barley → Grains
@@ -64,6 +72,18 @@ EDIT_PRICE — farmer wants to change price
 MARK_OUT_FOR_DELIVERY — farmer mentions delivery/dispatch
 HELP — cannot determine intent (confidence < 0.5)
 
+IMPORTANT INTENT DISCRIMINATION:
+- If farmer says "दिखाओ" / "बताओ" / "देखो" / "show" / "tell" / "check" → use VIEW/CHECK intents
+- If farmer says "बेचना" / "डालना" / "लगाना" / "sell" / "list" / "upload" → use CREATE_LISTING
+- "भाव दिखाओ" or "bhav batao" → CHECK_MANDI_PRICE (NOT CREATE_LISTING)
+- "भाव पर बेचना" or "bhav pe bechna" → CREATE_LISTING
+
+ADDITIONAL LISTING FIELDS:
+- min_order_kg: minimum order quantity in kg. Look for "kam se kam", "minimum", "at least", "न्यूनतम".
+- storage_type: one of "Field-fresh", "Dry warehouse", "Cold storage". Look for "taaza"/"fresh"/"ताज़ा" → "Field-fresh", "godown"/"warehouse"/"गोदाम" → "Dry warehouse", "cold"/"ठंडा"/"कोल्ड" → "Cold storage". Default null.
+- duration_days: listing duration in days. Look for "3 din", "ek hafta"/"1 week" → 7, "do hafta"/"2 weeks" → 14. Default null.
+- description: any quality descriptors like "Grade A", "machine-cleaned", "A grade", "saaf", "premium". Combine into a short English string. Default null.
+
 RESPONSE FORMAT (strict JSON):
 {
   "intent": "CREATE_LISTING",
@@ -77,6 +97,10 @@ RESPONSE FORMAT (strict JSON):
     "unit_spoken": "quintal",
     "harvest_date": null,
     "organic": false,
+    "min_order_kg": null,
+    "storage_type": null,
+    "duration_days": null,
+    "description": null,
     "price_b2b_50": null,
     "price_b2b_200": null
   },
@@ -85,12 +109,14 @@ RESPONSE FORMAT (strict JSON):
 
 RULES:
 1. Output ONLY the JSON object. No markdown fences, no text before/after.
-2. response_hi must be brief (max 20 words), conversational Hindi.
+2. response_hi must be brief (max 20 words), conversational Hindi, and MUST include the variety when present (e.g., "शरबती गेहूं" not just "गेहूं").
 3. If confidence < 0.5, set intent to "HELP".
 4. If user mentions "organic" or "जैविक", set organic to true.
 5. For B2B pricing, only fill price_b2b_50/price_b2b_200 if explicitly mentioned.
 6. harvest_date format: "YYYY-MM-DD" or null.
-7. All numeric fields must be numbers, not strings.`;
+7. All numeric fields must be numbers, not strings.
+8. storage_type must be exactly one of: "Field-fresh", "Dry warehouse", "Cold storage", or null.
+9. duration_days must be one of: 3, 7, 14, or null.`;
 
 export type AgentResponse = {
   intent: string;
@@ -104,6 +130,10 @@ export type AgentResponse = {
     unit_spoken?: string;
     harvest_date?: string | null;
     organic?: boolean;
+    min_order_kg?: number | null;
+    storage_type?: string | null;
+    duration_days?: number | null;
+    description?: string | null;
     price_b2b_50?: number | null;
     price_b2b_200?: number | null;
     order_id?: string | null;

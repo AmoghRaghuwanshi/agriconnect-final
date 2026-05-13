@@ -39,18 +39,31 @@ export default function NewListingPage() {
     if (mounted && (!isAuthenticated || user?.role !== 'FARMER')) router.push('/auth/farmer');
   }, [mounted, isAuthenticated, user, router]);
 
-  // Voice prefill: read URL params (?crop=X&qty=Y&price=Z)
+  // Voice prefill: read URL params (?crop=X&qty=Y&price=Z&variety=V&organic=1&minOrder=M&storage=S&duration=D&desc=...)
   useEffect(() => {
     if (!mounted) return;
     const crop = searchParams.get('crop');
     const qty = searchParams.get('qty');
     const price = searchParams.get('price');
-    if (crop || qty || price) {
+    const variety = searchParams.get('variety');
+    const organic = searchParams.get('organic');
+    const minOrder = searchParams.get('minOrder');
+    const storage = searchParams.get('storage');
+    const duration = searchParams.get('duration');
+    const desc = searchParams.get('desc');
+
+    if (crop || qty || price || variety || organic || minOrder || storage || duration || desc) {
       setForm(f => ({
         ...f,
         ...(crop ? { cropName: crop, category: CATEGORIES[crop] || '' } : {}),
+        ...(variety ? { variety } : {}),
         ...(qty ? { quantityKg: qty } : {}),
         ...(price ? { pricePerKg: price } : {}),
+        ...(organic === '1' ? { organic: true } : {}),
+        ...(minOrder ? { minOrderKg: minOrder } : {}),
+        ...(storage ? { storageType: storage } : {}),
+        ...(duration ? { duration: parseInt(duration) } : {}),
+        ...(desc ? { description: desc } : {}),
       }));
       // Auto-advance to step 2 if crop is set
       if (crop) setStep(qty && price ? 5 : 2);
@@ -71,6 +84,11 @@ export default function NewListingPage() {
       if (fields.quantityKg) { updated.quantityKg = fields.quantityKg; newAi.add('quantityKg'); }
       if (fields.pricePerKg) { updated.pricePerKg = fields.pricePerKg; newAi.add('pricePerKg'); }
       if (fields.harvestDate) { updated.harvestDate = fields.harvestDate; newAi.add('harvestDate'); }
+      if (fields.isOrganic !== undefined) { updated.organic = fields.isOrganic; newAi.add('organic'); }
+      if (fields.minOrderKg) { updated.minOrderKg = fields.minOrderKg; newAi.add('minOrderKg'); }
+      if (fields.storageType) { updated.storageType = fields.storageType; newAi.add('storageType'); }
+      if (fields.duration) { updated.duration = fields.duration; newAi.add('duration'); }
+      if (fields.description) { updated.description = fields.description; newAi.add('description'); }
       return updated;
     });
     setAiFields(newAi);
@@ -171,13 +189,13 @@ export default function NewListingPage() {
                 </div>
               </div>
               <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                <label className="label">Farming Method</label>
+                <label className="label">Farming Method {aiFields.has('organic') && <span style={{ color: 'var(--green-700)', marginLeft: '0.3rem' }}><SparkleIcon /></span>}</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="button" className={`btn btn-sm ${form.organic ? 'btn-primary' : 'btn-outline'}`}
+                  <button type="button" className={`btn btn-sm ${form.organic ? 'btn-primary' : 'btn-outline'} ${aiFields.has('organic') ? 'ai-filled' : ''}`}
                     onClick={() => update('organic', true)} style={{ borderRadius: 'var(--radius-md)' }}>
                     {form.organic && '◉ '}Organic
                   </button>
-                  <button type="button" className={`btn btn-sm ${!form.organic ? 'btn-primary' : 'btn-outline'}`}
+                  <button type="button" className={`btn btn-sm ${!form.organic ? 'btn-primary' : 'btn-outline'} ${aiFields.has('organic') ? 'ai-filled' : ''}`}
                     onClick={() => update('organic', false)} style={{ borderRadius: 'var(--radius-md)' }}>
                     {!form.organic && '◉ '}Conventional
                   </button>
@@ -217,8 +235,8 @@ export default function NewListingPage() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="label">Minimum Order (kg)</label>
-                <input className="input" type="number" placeholder="1" value={form.minOrderKg} onChange={e => update('minOrderKg', e.target.value)} min="1" />
+                <label className="label">Minimum Order (kg) {aiFields.has('minOrderKg') && <span style={{ color: 'var(--green-700)', marginLeft: '0.3rem' }}><SparkleIcon /></span>}</label>
+                <input className={`input ${aiClass('minOrderKg')}`} type="number" placeholder="1" value={form.minOrderKg} onChange={e => update('minOrderKg', e.target.value)} min="1" />
                 {parseFloat(form.minOrderKg) > parseFloat(form.quantityKg) && form.quantityKg && (
                   <div style={{ color: '#C1121F', fontSize: '0.8rem', marginTop: '0.25rem' }}>⚠ Minimum order cannot exceed total quantity.</div>
                 )}
@@ -238,28 +256,28 @@ export default function NewListingPage() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="label">Harvest Date</label>
-                  <input className="input" type="date" value={form.harvestDate} onChange={e => update('harvestDate', e.target.value)} />
+                  <label className="label">Harvest Date {aiFields.has('harvestDate') && <span style={{ color: 'var(--green-700)', marginLeft: '0.3rem' }}><SparkleIcon /></span>}</label>
+                  <input className={`input ${aiClass('harvestDate')}`} type="date" value={form.harvestDate} onChange={e => update('harvestDate', e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="label">Storage Type</label>
-                  <select className="input" value={form.storageType} onChange={e => update('storageType', e.target.value)}>
+                  <label className="label">Storage Type {aiFields.has('storageType') && <span style={{ color: 'var(--green-700)', marginLeft: '0.3rem' }}><SparkleIcon /></span>}</label>
+                  <select className={`input ${aiClass('storageType')}`} value={form.storageType} onChange={e => update('storageType', e.target.value)}>
                     {STORAGE.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
               <div className="form-group">
-                <label className="label">Duration</label>
+                <label className="label">Duration {aiFields.has('duration') && <span style={{ color: 'var(--green-700)', marginLeft: '0.3rem' }}><SparkleIcon /></span>}</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   {DURATIONS.map(d => (
-                    <button key={d.value} type="button" className={`btn btn-sm ${form.duration === d.value ? 'btn-primary' : 'btn-outline'}`} style={{ borderRadius: 'var(--radius-md)' }}
+                    <button key={d.value} type="button" className={`btn btn-sm ${form.duration === d.value ? 'btn-primary' : 'btn-outline'} ${aiFields.has('duration') && form.duration === d.value ? 'ai-filled' : ''}`} style={{ borderRadius: 'var(--radius-md)' }}
                       onClick={() => update('duration', d.value)}>{d.label}</button>
                   ))}
                 </div>
               </div>
               <div className="form-group" style={{ marginTop: '0.5rem' }}>
-                <label className="label">Description (optional)</label>
-                <textarea className="input" rows={3} placeholder="Grade A, machine-cleaned..."
+                <label className="label">Description (optional) {aiFields.has('description') && <span style={{ color: 'var(--green-700)', marginLeft: '0.3rem' }}><SparkleIcon /></span>}</label>
+                <textarea className={`input ${aiClass('description')}`} rows={3} placeholder="Grade A, machine-cleaned..."
                   value={form.description} onChange={e => update('description', e.target.value)} style={{ resize: 'vertical' }} />
               </div>
             </div>

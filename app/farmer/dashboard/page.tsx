@@ -7,8 +7,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useListingStore } from '@/store/listingStore';
 import { useOrderStore } from '@/store/orderStore';
 import DashboardNav from '@/components/shared/DashboardNav';
-import MicFAB from '@/components/farmer/MicFAB';
-import VoiceTutorial from '@/components/farmer/VoiceTutorial';
 
 /* ── Inline SVG icons for stat cards (matching Stitch) ─────────────────── */
 const StatIcon = ({ type }: { type: string }) => {
@@ -261,10 +259,6 @@ export default function FarmerDashboardPage() {
         </div>
 
       </div>
-
-      {/* Voice Agent */}
-      <MicFAB />
-      <VoiceTutorial />
     </main>
   );
 }

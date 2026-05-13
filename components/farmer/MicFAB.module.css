@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   MicFAB — Floating Action Button for Farmer Voice Agent
+   MicFAB — Premium Floating Action Button for Farmer Voice Agent
+   Available on ALL farmer pages via farmer layout.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .fab-container {
@@ -13,139 +14,285 @@
   gap: 0.75rem;
 }
 
-/* ── Transcript Bubble ──────────────────────────────────────────────────── */
+/* ── Hint Tooltip (first-time user) ────────────────────────────────────── */
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(27, 67, 50, 0.95);
+  color: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: 0 8px 32px rgba(27, 67, 50, 0.35);
+  cursor: pointer;
+  animation: hint-bounce 2s ease-in-out infinite, slide-up 0.3s ease;
+  max-width: 220px;
+}
+
+.hint small {
+  font-weight: 400;
+  opacity: 0.8;
+  font-size: 0.72rem;
+}
+
+.hintIcon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+@keyframes hint-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+/* ── Transcript Bubble (Glassmorphism) ─────────────────────────────────── */
 .bubble {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  position: relative;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(27, 67, 50, 0.12);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
   padding: 1rem 1.25rem;
-  max-width: 280px;
-  min-width: 200px;
+  max-width: 300px;
+  min-width: 220px;
   font-size: 0.9rem;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--text-primary);
-  animation: slide-up 0.2s ease;
+  animation: slide-up 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .bubble {
+    background: rgba(30, 40, 35, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Close / minimize button */
+.bubbleClose {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.bubbleClose:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--text-primary);
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .bubbleLabel {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.4rem;
+  padding-right: 1.5rem; /* space for close button */
 }
 
 .bubbleText {
   font-weight: 500;
   word-break: break-word;
+  color: var(--text-primary);
 }
 
 .bubbleResponse {
   color: var(--green-900);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 /* ── FAB Button ─────────────────────────────────────────────────────────── */
 .fab {
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-lg);
+  font-size: 1.6rem;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.fabIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.fab:hover .fabIconWrap {
+  transform: scale(1.1);
 }
 
 .fab:active {
-  transform: scale(0.93);
+  transform: scale(0.9);
 }
 
-/* IDLE state */
+/* IDLE state — Terra gradient */
 .fabIdle {
-  background: var(--terra-600);
+  background: linear-gradient(135deg, #D97757, #C4623F);
   color: #fff;
 }
 
 .fabIdle:hover {
-  background: var(--terra-500);
-  box-shadow: 0 8px 32px rgba(217, 119, 87, 0.4);
+  background: linear-gradient(135deg, #E08867, #D97757);
+  box-shadow:
+    0 8px 32px rgba(217, 119, 87, 0.45),
+    0 2px 8px rgba(217, 119, 87, 0.2);
+  transform: translateY(-2px);
 }
 
-/* LISTENING state */
+/* LISTENING state — Red with pulse */
 .fabListening {
-  background: #DC2626;
+  background: linear-gradient(135deg, #EF4444, #DC2626);
   color: #fff;
-  animation: voice-ring 1.2s ease-in-out infinite;
+  animation: fab-glow 1.5s ease-in-out infinite;
 }
 
-@keyframes voice-ring {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
-  50%       { box-shadow: 0 0 0 16px rgba(220, 38, 38, 0); }
+@keyframes fab-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5), 0 6px 24px rgba(239, 68, 68, 0.3); }
+  50%      { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0), 0 6px 24px rgba(239, 68, 68, 0.3); }
 }
 
-/* PROCESSING state */
+/* PROCESSING state — Green gradient */
 .fabProcessing {
-  background: var(--olive-700);
+  background: linear-gradient(135deg, #2D5A3D, #1B4332);
   color: #fff;
   pointer-events: none;
+  animation: fab-spin-subtle 2s linear infinite;
 }
 
-/* SPEAKING state */
+@keyframes fab-spin-subtle {
+  0%   { box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.3), 0 6px 24px rgba(0, 0, 0, 0.15); }
+  50%  { box-shadow: 0 0 0 6px rgba(45, 90, 61, 0.1), 0 6px 24px rgba(0, 0, 0, 0.15); }
+  100% { box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.3), 0 6px 24px rgba(0, 0, 0, 0.15); }
+}
+
+/* SPEAKING state — Deep green */
 .fabSpeaking {
-  background: var(--green-900);
+  background: linear-gradient(135deg, #1B4332, #0F2B1F);
   color: #fff;
   pointer-events: none;
 }
 
 /* ERROR state */
 .fabError {
-  background: #DC2626;
+  background: linear-gradient(135deg, #EF4444, #B91C1C);
   color: #fff;
 }
 
-/* ── Waveform Animation ─────────────────────────────────────────────────── */
+/* ── Ripple Rings (behind FAB when listening) ──────────────────────────── */
+.ripple1, .ripple2 {
+  position: fixed;
+  bottom: calc(5rem + 2px);
+  right: calc(1.5rem + 2px);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  z-index: 1;
+  pointer-events: none;
+  animation: ripple-expand 2s ease-out infinite;
+}
+
+.ripple2 {
+  animation-delay: 0.6s;
+}
+
+@keyframes ripple-expand {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ── Waveform Animation (inside bubble) ────────────────────────────────── */
 .waveform {
   display: flex;
   align-items: center;
   gap: 3px;
   height: 1.5rem;
   justify-content: center;
-  margin-top: 0.5rem;
+  margin-top: 0.6rem;
+  padding: 0.25rem 0;
 }
 
 .waveBar {
   width: 3px;
   border-radius: 99px;
-  background: var(--terra-600);
+  background: linear-gradient(180deg, var(--terra-600, #D97757), var(--green-900, #1B4332));
   animation: waveAnim 0.8s ease-in-out infinite;
 }
 
-.waveBar:nth-child(1) { height: 8px; animation-delay: 0ms; }
-.waveBar:nth-child(2) { height: 14px; animation-delay: 100ms; }
-.waveBar:nth-child(3) { height: 20px; animation-delay: 200ms; }
-.waveBar:nth-child(4) { height: 14px; animation-delay: 300ms; }
-.waveBar:nth-child(5) { height: 8px; animation-delay: 400ms; }
+.waveBar:nth-child(1) { height: 6px; animation-delay: 0ms; }
+.waveBar:nth-child(2) { height: 12px; animation-delay: 80ms; }
+.waveBar:nth-child(3) { height: 18px; animation-delay: 160ms; }
+.waveBar:nth-child(4) { height: 22px; animation-delay: 240ms; }
+.waveBar:nth-child(5) { height: 18px; animation-delay: 320ms; }
+.waveBar:nth-child(6) { height: 12px; animation-delay: 400ms; }
+.waveBar:nth-child(7) { height: 6px; animation-delay: 480ms; }
 
 @keyframes waveAnim {
-  0%, 100% { transform: scaleY(0.4); }
-  50%       { transform: scaleY(1); }
+  0%, 100% { transform: scaleY(0.35); opacity: 0.5; }
+  50%       { transform: scaleY(1); opacity: 1; }
 }
 
-/* ── Unsupported Banner ─────────────────────────────────────────────────── */
-.unsupported {
-  display: none;
+/* ── Processing Dots ───────────────────────────────────────────────────── */
+.processingDots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.processingDots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green-900, #1B4332);
+  animation: dotBounce 1.4s ease-in-out infinite;
+}
+
+.processingDots span:nth-child(2) { animation-delay: 0.16s; }
+.processingDots span:nth-child(3) { animation-delay: 0.32s; }
+
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%           { transform: scale(1); opacity: 1; }
 }
 
 /* ── Mobile adjustments ─────────────────────────────────────────────────── */
@@ -155,7 +302,20 @@
     right: 1rem;
   }
 
+  .fab {
+    width: 56px;
+    height: 56px;
+  }
+
   .bubble {
-    max-width: 240px;
+    max-width: 260px;
+    min-width: 200px;
+  }
+
+  .ripple1, .ripple2 {
+    bottom: calc(6rem + 2px);
+    right: calc(1rem + 2px);
+    width: 52px;
+    height: 52px;
   }
 }

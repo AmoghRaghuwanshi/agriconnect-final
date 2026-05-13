@@ -109,16 +109,19 @@ function tryRuleBased(transcript: string): AgentResponse & { source: string } {
 
 function getResponseHi(intent: string, params: Record<string, unknown>): string {
   const crop = (params.crop_name as string) || '';
+  const variety = (params.variety as string) || '';
   const qty = params.quantity_kg as number | undefined;
   const price = params.price_per_kg as number | undefined;
 
+  const cropLabel = variety ? `${variety} ${crop}` : crop;
+
   switch (intent) {
     case 'CREATE_LISTING':
-      if (crop && qty && price) return `${qty} किलो ${crop}, ₹${price}/किलो — listing बना रहा हूं।`;
-      if (crop) return `${crop} की listing बनाते हैं। quantity और price बताइए।`;
-      return 'Listing बनाते हैं। Crop, quantity, और price बताइए।';
+      if (crop && qty && price) return `${qty} किलो ${cropLabel}, ₹${price}/किलो — listing बना रहा हूं।`;
+      if (crop) return `${cropLabel} की listing बनाते हैं। quantity और price बताइए।`;
+      return 'Listing बनाते हैं। Crop, variety, quantity, और price बताइए।';
     case 'CHECK_MANDI_PRICE':
-      return crop ? `${crop} का mandi भाव दिखा रहा हूं।` : 'Mandi भाव दिखा रहा हूं।';
+      return crop ? `${cropLabel} का mandi भाव दिखा रहा हूं।` : 'Mandi भाव दिखा रहा हूं।';
     case 'VIEW_ORDERS':
       return 'आपके orders दिखा रहा हूं।';
     case 'VIEW_INCOME':
@@ -132,6 +135,7 @@ function getResponseHi(intent: string, params: Record<string, unknown>): string 
     case 'RESUME_LISTING':
       return 'Listing चालू कर रहा हूं।';
     case 'EDIT_PRICE':
+      if (price && crop) return `${cropLabel} का price ₹${price} कर रहा हूं।`;
       return price ? `Price ₹${price} कर रहा हूं।` : 'नया price बताइए।';
     default:
       return 'बोलें: "100 kilo gehun, 21 rupye kilo" — या "meri orders dikhao"।';
