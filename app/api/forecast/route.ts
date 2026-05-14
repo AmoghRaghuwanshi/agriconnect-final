@@ -199,7 +199,7 @@ async function tryGeminiForecast(crop: string, variety?: string, region?: string
   const userPrompt = `Forecast prices for: ${crop}${variety ? ` (variety: ${variety})` : ''}${region ? `, region: ${region}` : ', region: India (general)'}. Current date: ${getTodayIST()}.`;
 
   // Try multiple models per key — each model has its own quota
-  const MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b', 'gemini-1.5-flash'];
+  const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
 
   for (let i = 0; i < GEMINI_KEYS.length; i++) {
     const keyIndex = (currentKeyIndex + i) % GEMINI_KEYS.length;

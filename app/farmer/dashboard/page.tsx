@@ -152,6 +152,28 @@ export default function FarmerDashboardPage() {
           </div>
         </Link>
 
+        {/* ── GIS Yield Intelligence Banner ─────────────────────── */}
+        <Link href="/farmer/my-fields" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '2rem' }}>
+          <div className="card" style={{
+            padding: '1.25rem 1.5rem', cursor: 'pointer',
+            background: 'linear-gradient(135deg, #7c2d12 0%, #c2410c 60%, #ea580c 100%)',
+            color: '#fff', position: 'relative', overflow: 'hidden',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: 'none',
+          }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: '40%', height: '100%', background: 'radial-gradient(circle at 90% 50%, rgba(255,255,255,0.07) 0%, transparent 60%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                <span style={{ fontSize: '1.3rem' }}>🛰️</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>AI Yield Intelligence · फसल उपज विश्लेषण</span>
+              </div>
+              <p style={{ fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.4 }}>
+                Map fields, get soil + weather analysis & AI crop recommendations — खेत की मिट्टी जांच और फसल सुझाव
+              </p>
+            </div>
+            <div style={{ position: 'relative', zIndex: 1, flexShrink: 0, fontSize: '1.5rem', opacity: 0.9 }}>→</div>
+          </div>
+        </Link>
+
         {/* ── Content grid: Listings + Mandi ───────────────────────── */}
         <div className="grid-sidebar">
           {/* Your Active Listings */}

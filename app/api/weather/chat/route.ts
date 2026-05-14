@@ -17,7 +17,7 @@ const GEMINI_KEYS: string[] = [
 ].filter(k => k.length > 0 && k !== 'placeholder');
 
 let keyIdx = 0;
-const MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-lite'];
 
 const SYSTEM = `You are Krishi Mitra (कृषि मित्र), a FEMALE weather advisor ONLY for Indian farmers.
 

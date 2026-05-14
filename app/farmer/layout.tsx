@@ -15,12 +15,14 @@ import VoiceTutorial from '@/components/farmer/VoiceTutorial';
 export default function FarmerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isWeatherPage = pathname === '/farmer/weather';
+  const isYieldPage = pathname.startsWith('/farmer/yield');
+  const hideMic = isWeatherPage || isYieldPage;
 
   return (
     <>
       {children}
-      {!isWeatherPage && <MicFAB />}
-      {!isWeatherPage && <VoiceTutorial />}
+      {!hideMic && <MicFAB />}
+      {!hideMic && <VoiceTutorial />}
     </>
   );
 }

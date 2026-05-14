@@ -17,6 +17,8 @@
     "@neondatabase/serverless": "^1.1.0",
     "@netlify/plugin-nextjs": "^5.11.2",
     "@tanstack/react-query": "^5.75.0",
+    "@types/google.maps": "^3.64.1",
+    "@vis.gl/react-google-maps": "^1.8.3",
     "browser-image-compression": "^2.0.2",
     "cheerio": "^1.0.0",
     "groq-sdk": "^1.1.2",
