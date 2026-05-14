@@ -6,7 +6,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 import { AGENT_SYSTEM_PROMPT, type AgentResponse } from '@/lib/constants/agentPrompt';
-import { ruleBasedIntent } from './ruleBasedFallback';
+import { ruleBasedIntent, isOutOfScopeQuery } from './ruleBasedFallback';
+import { getVoiceResponse } from './voiceResponses';
 
 // ── Gemini Keys (server-side only) ─────────────────────────────────────────
 const GEMINI_KEYS: string[] = [
@@ -104,53 +105,13 @@ function tryRuleBased(transcript: string): AgentResponse & { source: string } {
     intent: result.intent,
     confidence: result.confidence,
     params: result.params as AgentResponse['params'],
-    response_hi: getResponseHi(result.intent, result.params),
+    response_hi: getVoiceResponse(result.intent, result.params),
     source: 'rule-based',
   };
 }
 
-function getResponseHi(intent: string, params: Record<string, unknown>): string {
-  const crop = (params.crop_name as string) || '';
-  const variety = (params.variety as string) || '';
-  const qty = params.quantity_kg as number | undefined;
-  const price = params.price_per_kg as number | undefined;
-
-  const cropLabel = variety ? `${variety} ${crop}` : crop;
-
-  switch (intent) {
-    case 'CREATE_LISTING':
-      if (crop && qty && price) return `${qty} किलो ${cropLabel}, ₹${price}/किलो — listing बना रही हूं।`;
-      if (crop) return `${cropLabel} की listing बनाते हैं। quantity और price बताइए।`;
-      return 'Listing बनाते हैं। Crop, variety, quantity, और price बताइए।';
-    case 'CHECK_MANDI_PRICE':
-      return crop ? `${cropLabel} का mandi भाव दिखा रही हूं।` : 'Mandi भाव दिखा रही हूं।';
-    case 'PRICE_FORECAST':
-      return crop ? `${cropLabel} का price forecast दिखा रही हूं — आगे क्या भाव होगा।` : 'Price forecast दिखा रही हूं।';
-    case 'CHECK_WEATHER':
-      return 'मौसम की जानकारी दिखा रही हूं — खेती के लिए सलाह भी मिलेगी।';
-    case 'NAVIGATE_DASHBOARD':
-      return 'Dashboard पे ले जा रही हूं।';
-    case 'NAVIGATE_LISTINGS':
-      return 'आपकी listings दिखा रही हूं।';
-    case 'VIEW_ORDERS':
-      return 'आपके orders दिखा रही हूं।';
-    case 'VIEW_INCOME':
-      return 'आपकी कमाई दिखा रही हूं।';
-    case 'VIEW_SCORE':
-      return 'आपका score दिखा रही हूं।';
-    case 'MARK_OUT_FOR_DELIVERY':
-      return 'Delivery mark कर रही हूं।';
-    case 'PAUSE_LISTING':
-      return 'Listing band कर रही हूं।';
-    case 'RESUME_LISTING':
-      return 'Listing चालू कर रही हूं।';
-    case 'EDIT_PRICE':
-      if (price && crop) return `${cropLabel} का price ₹${price} कर रही हूं।`;
-      return price ? `Price ₹${price} कर रही हूं।` : 'नया price बताइए।';
-    default:
-      return 'बोलें: listing बनाओ, mausam dikhao, price forecast, mandi bhav, orders dikhao, या dashboard।';
-  }
-}
+// ── OUT_OF_SCOPE response constant ───────────────────────────────────────
+const OUT_OF_SCOPE_RESPONSE = 'माफ़ करना, मैं सिर्फ खेती-बाड़ी में मदद कर सकती हूं। फसल, मंडी भाव, या मौसम पूछें।';
 
 // ── Main Entry Point ──────────────────────────────────────────────────────
 export async function processAgentRequest(
@@ -163,7 +124,20 @@ export async function processAgentRequest(
       intent: 'HELP',
       confidence: 0,
       params: {},
-      response_hi: 'कुछ बोलें।',
+      response_hi: 'कुछ बोलिए — मैं सुन रही हूं।',
+      source: 'rule-based',
+    };
+  }
+
+  // Fast server-side guard: catch obviously off-topic queries immediately
+  // (saves API quota and gives instant response)
+  if (isOutOfScopeQuery(text)) {
+    console.log('[Agent] OUT_OF_SCOPE detected (keyword guard):', text.slice(0, 60));
+    return {
+      intent: 'OUT_OF_SCOPE',
+      confidence: 1.0,
+      params: {},
+      response_hi: OUT_OF_SCOPE_RESPONSE,
       source: 'rule-based',
     };
   }
@@ -173,11 +147,20 @@ export async function processAgentRequest(
 
   // 1-3: Try Gemini keys
   const geminiResult = await tryGemini(prefixed);
-  if (geminiResult && geminiResult.confidence >= 0.5) return geminiResult;
+  if (geminiResult && geminiResult.confidence >= 0.5) {
+    // Override Gemini's response_hi with our controlled, feminine Hindi response
+    // (Gemini is great for intent parsing but unreliable for consistent Hindi tone)
+    geminiResult.response_hi = getVoiceResponse(geminiResult.intent, geminiResult.params);
+    return geminiResult;
+  }
 
   // 4: Try Groq
   const groqResult = await tryGroq(prefixed);
-  if (groqResult && groqResult.confidence >= 0.5) return groqResult;
+  if (groqResult && groqResult.confidence >= 0.5) {
+    // Same override for Groq
+    groqResult.response_hi = getVoiceResponse(groqResult.intent, groqResult.params);
+    return groqResult;
+  }
 
   // 5: Rule-based fallback (always works)
   return tryRuleBased(text);

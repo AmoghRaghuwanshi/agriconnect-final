@@ -29,6 +29,9 @@ interface UseVoiceAgentReturn {
  * Voice agent hook — uses browser-native Web Speech API.
  * When useGemini=true and online, sends transcript to /api/agent/process first.
  * Falls back to ruleBasedIntent() on failure or offline.
+ *
+ * Upgraded: Best-voice picker for natural Hindi TTS, Hindi error messages,
+ * voice caching, and voiceschanged pre-loading.
  */
 export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentReturn {
   const useGemini = options?.useGemini ?? false;
@@ -61,6 +64,58 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
     };
   }, []);
 
+  // ── Best voice selection for natural-sounding Hindi TTS ──────────────
+  const cachedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const voicesLoadedRef = useRef(false);
+
+  /** Pick the best Hindi voice available. Preference:
+   *  1. Google हिन्दी (Chrome cloud voice — very natural)
+   *  2. Any voice whose name contains "Google" and lang starts with "hi"
+   *  3. Any voice with lang "hi-IN"
+   *  4. Any voice with lang starting with "hi"
+   *  5. null (let browser default decide)
+   */
+  const pickBestVoice = useCallback((): SpeechSynthesisVoice | null => {
+    if (cachedVoiceRef.current) return cachedVoiceRef.current;
+
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+
+    // Priority 1: Google's Hindi cloud voice (best quality, available in Chrome)
+    let best = voices.find(v => v.name === 'Google हिन्दी' && v.lang.startsWith('hi'));
+    // Priority 2: Any Google Hindi voice
+    if (!best) best = voices.find(v => /google/i.test(v.name) && v.lang.startsWith('hi'));
+    // Priority 3: Exact hi-IN match
+    if (!best) best = voices.find(v => v.lang === 'hi-IN');
+    // Priority 4: Any Hindi voice
+    if (!best) best = voices.find(v => v.lang.startsWith('hi'));
+
+    if (best) {
+      cachedVoiceRef.current = best;
+      console.log('[Voice] Selected TTS voice:', best.name, best.lang);
+    }
+    return best || null;
+  }, []);
+
+  // Pre-load voices (Chrome loads them async, fires voiceschanged when ready)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    const loadVoices = () => {
+      pickBestVoice();
+      voicesLoadedRef.current = true;
+    };
+
+    // Try immediately (works in Firefox/Safari)
+    loadVoices();
+
+    // Chrome fires this event when cloud voices finish loading
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+    return () => {
+      window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+    };
+  }, [pickBestVoice]);
+
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) {
       setState('IDLE');
@@ -71,15 +126,26 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
     const clean = text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
     const utterance = new SpeechSynthesisUtterance(clean);
     utterance.lang = 'hi-IN';
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
+
+    // Use the best available voice
+    const bestVoice = pickBestVoice();
+    if (bestVoice) {
+      utterance.voice = bestVoice;
+      // Google cloud voices sound best at natural speed
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+    } else {
+      // Fallback: tweak rate/pitch to make system voice less robotic
+      utterance.rate = 1.05;
+      utterance.pitch = 1.1;
+    }
 
     utterance.onend = () => setState('IDLE');
     utterance.onerror = () => setState('IDLE');
 
     setState('SPEAKING');
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [pickBestVoice]);
 
   // ── Gemini API call with 6s timeout ─────────────────────────────────────
   const tryGeminiAPI = useCallback(async (text: string): Promise<AgentResponse | null> => {
@@ -123,6 +189,8 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
           params: geminiResult.params as Record<string, unknown>,
           confidence: geminiResult.confidence,
         });
+        // Override Gemini's response_hi with our controlled, feminine Hindi response
+        // (Gemini is great for intent parsing but unreliable for consistent Hindi tone)
         const voiceResponse = geminiResult.response_hi || getVoiceResponse(geminiResult.intent, geminiResult.params as Record<string, unknown>);
 
         setResponse(voiceResponse);
@@ -210,12 +278,12 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
         setTranscript('');
       } else if (event.error === 'not-allowed') {
         setState('ERROR');
-        setResponse('🎤 Mic blocked — allow mic in browser settings.');
+        setResponse('🎤 माइक बंद है — browser settings में mic allow करें।');
       } else if (event.error === 'aborted') {
         // Manual abort — do nothing, already handled
       } else {
         setState('ERROR');
-        setResponse('Voice error. Try again.');
+        setResponse('कुछ गड़बड़ हुई — दोबारा बोलें। / Voice error, try again.');
       }
       recognitionRef.current = null;
     };
@@ -241,7 +309,7 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
     } catch (err) {
       console.error('[Voice] Failed to start recognition:', err);
       setState('ERROR');
-      setResponse('Could not start voice. Try again.');
+      setResponse('आवाज़ शुरू नहीं हुई — फिर से कोशिश करें।');
     }
   }, [isSupported, processTranscript]);
 

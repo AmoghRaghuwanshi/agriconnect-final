@@ -15,7 +15,7 @@ import VoiceTutorial from '@/components/farmer/VoiceTutorial';
 export default function FarmerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isWeatherPage = pathname === '/farmer/weather';
-  const isYieldPage = pathname.startsWith('/farmer/yield');
+  const isYieldPage = pathname.startsWith('/farmer/yield') || pathname.startsWith('/farmer/calendar');
   const hideMic = isWeatherPage || isYieldPage;
 
   return (

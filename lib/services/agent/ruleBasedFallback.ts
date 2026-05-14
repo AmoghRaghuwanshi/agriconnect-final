@@ -10,6 +10,56 @@ export interface IntentResult {
   confidence: number;
 }
 
+// ── Off-topic keyword detector ─────────────────────────────────────────────
+// Catches common non-farming queries BEFORE any farming intent check.
+// Covers English, Hindi, and Hinglish.
+export function isOutOfScopeQuery(input: string): boolean {
+  const t = input.toLowerCase();
+
+  const foodKeywords = [
+    'recipe', 'recipes', 'kaise banate', 'kaise banta', 'kaise banaye', 'kaise pakaye',
+    'pakane ka tarika', 'banane ka tarika', 'pasta', 'pizza', 'burger', 'noodles',
+    'biryani recipe', 'cake recipe', 'chai recipe', 'khana banao', 'khana banana',
+    'khana pakana', 'cook', 'cooking', 'ingredient', 'masala recipe', 'sweet recipe',
+  ];
+
+  const entertainmentKeywords = [
+    'cricket', 'football', 'match score', 'ipl', 'world cup score',
+    'movie', 'film', 'web series', 'netflix', 'youtube video', 'song',
+    'gaana', 'singer', 'actor', 'actress', 'celebrity',
+    'game', 'gaming', 'pubg', 'free fire',
+  ];
+
+  const generalKnowledgeKeywords = [
+    'capital of', 'history of', 'who is', 'who was', 'what is the president',
+    'prime minister', 'pm kya', 'cm kya', 'election', 'vote', 'party',
+    'politics', 'rajniti', 'राजनीति', 'gk question', 'general knowledge', 'current affairs',
+  ];
+
+  const techKeywords = [
+    'phone battery', 'mobile', 'laptop', 'computer', 'software', 'app install',
+    'wifi', 'internet', 'password', 'hack', 'coding', 'programming',
+  ];
+
+  const nonFarmFinanceKeywords = [
+    'stock market', 'share bazaar', 'bitcoin', 'crypto', 'sensex', 'nifty',
+    'mutual fund', 'emi', 'home loan', 'car loan', 'credit card',
+  ];
+
+  const lifestyleKeywords = [
+    'hotel', 'train ticket', 'flight', 'tour', 'travel', 'trip',
+    'relationship', 'love', 'marriage', 'shaadi', 'divorce',
+    'health problem', 'doctor', 'hospital', 'medicine', 'dawai',
+  ];
+
+  const allOffTopicKeywords = [
+    ...foodKeywords, ...entertainmentKeywords, ...generalKnowledgeKeywords,
+    ...techKeywords, ...nonFarmFinanceKeywords, ...lifestyleKeywords,
+  ];
+
+  return allOffTopicKeywords.some(kw => t.includes(kw));
+}
+
 // ── Crop name mapping (Hindi/Hinglish → English) ──────────────────────────
 const CROP_MAP: Record<string, string> = {
   // Romanized Hindi / Hinglish
@@ -183,6 +233,11 @@ export function ruleBasedIntent(input: string): IntentResult {
 
   if (!text) {
     return { intent: 'HELP', params: {}, confidence: 0 };
+  }
+
+  // Guard: reject non-farming queries immediately
+  if (isOutOfScopeQuery(text)) {
+    return { intent: 'OUT_OF_SCOPE', params: {}, confidence: 1.0 };
   }
 
   const isViewVerb = hasViewIntent(text);

@@ -341,6 +341,10 @@ Best Crops: ${analysis.bestCrops?.map((c: any) => c.name).join(', ') || 'N/A'}`;
               </div>
             </div>
 
+            <button className="btn btn-outline" onClick={() => router.push(`/farmer/calendar/${fieldId}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+              📅 Generate Crop Calendar
+            </button>
+
             <button className="btn btn-primary" onClick={() => router.push('/farmer/my-fields')} style={{ width: '100%' }}>
               ← Back to My Fields
             </button>
