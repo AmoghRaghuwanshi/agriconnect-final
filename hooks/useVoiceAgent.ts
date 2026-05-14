@@ -67,7 +67,9 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
       return;
     }
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Strip emojis so TTS doesn't read them as words
+    const clean = text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+    const utterance = new SpeechSynthesisUtterance(clean);
     utterance.lang = 'hi-IN';
     utterance.rate = 0.95;
     utterance.pitch = 1.0;
@@ -79,7 +81,7 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
     window.speechSynthesis.speak(utterance);
   }, []);
 
-  // ── Gemini API call with 4s timeout ─────────────────────────────────────
+  // ── Gemini API call with 6s timeout ─────────────────────────────────────
   const tryGeminiAPI = useCallback(async (text: string): Promise<AgentResponse | null> => {
     if (!navigator.onLine) {
       console.log('[Voice] Offline — skipping Gemini');
@@ -87,7 +89,7 @@ export function useVoiceAgent(options?: UseVoiceAgentOptions): UseVoiceAgentRetu
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+    const timeout = setTimeout(() => controller.abort(), 6000);
 
     try {
       const res = await fetch('/api/agent/process', {

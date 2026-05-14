@@ -107,6 +107,51 @@ export default function FarmerDashboardPage() {
           ))}
         </div>
 
+        {/* ── Price Forecast Banner ────────────────────────────────── */}
+        <Link href="/farmer/forecast" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '2rem' }}>
+          <div className="card" style={{
+            padding: '1.25rem 1.5rem', cursor: 'pointer',
+            background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 60%, #40916C 100%)',
+            color: '#fff', position: 'relative', overflow: 'hidden',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            border: 'none',
+          }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: '40%', height: '100%', background: 'radial-gradient(circle at 90% 50%, rgba(255,255,255,0.07) 0%, transparent 60%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                <span style={{ fontSize: '1.3rem' }}>📊</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Price Forecast · मूल्य पूर्वानुमान</span>
+              </div>
+              <p style={{ fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.4 }}>
+                AI-powered price predictions for your crops — आगे क्या भाव होगा?
+              </p>
+            </div>
+            <div style={{ position: 'relative', zIndex: 1, flexShrink: 0, fontSize: '1.5rem', opacity: 0.9 }}>→</div>
+          </div>
+        </Link>
+
+        {/* ── Weather Banner ───────────────────────────────────────── */}
+        <Link href="/farmer/weather" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '2rem' }}>
+          <div className="card" style={{
+            padding: '1.25rem 1.5rem', cursor: 'pointer',
+            background: 'linear-gradient(135deg, #1a365d 0%, #2d3748 60%, #4a5568 100%)',
+            color: '#fff', position: 'relative', overflow: 'hidden',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: 'none',
+          }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, width: '40%', height: '100%', background: 'radial-gradient(circle at 90% 50%, rgba(255,255,255,0.07) 0%, transparent 60%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                <span style={{ fontSize: '1.3rem' }}>🌦️</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>Weather · मौसम</span>
+              </div>
+              <p style={{ fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.4 }}>
+                Farm-focused weather + AI chatbot · खेती के लिए मौसम सलाह
+              </p>
+            </div>
+            <div style={{ position: 'relative', zIndex: 1, flexShrink: 0, fontSize: '1.5rem', opacity: 0.9 }}>→</div>
+          </div>
+        </Link>
+
         {/* ── Content grid: Listings + Mandi ───────────────────────── */}
         <div className="grid-sidebar">
           {/* Your Active Listings */}

@@ -87,7 +87,6 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: 'agriconnect-cart',
-      partialize: (state) => ({ items: state.items }),
     }
   )
 );

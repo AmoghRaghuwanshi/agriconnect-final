@@ -31,6 +31,8 @@ export default function NewListingPage() {
     harvestDate: '', storageType: 'Field-fresh', description: '', duration: 7, isB2b: true, isB2c: true,
     organic: false,
   });
+  const [images, setImages] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
 
@@ -116,8 +118,8 @@ export default function NewListingPage() {
       quantityKg: parseFloat(form.quantityKg), quantityRemaining: parseFloat(form.quantityKg),
       pricePerKg: parseFloat(form.pricePerKg), minOrderKg: parseFloat(form.minOrderKg) || 1,
       harvestDate: form.harvestDate, storageType: form.storageType, description: form.description,
-      images: [], status: 'ACTIVE', isB2b: form.isB2b, isB2c: form.isB2c, organic: form.organic,
-      expiresAt: expires.toISOString(), location: 'Indore, MP', state: 'Madhya Pradesh',
+      images, status: 'ACTIVE', isB2b: form.isB2b, isB2c: form.isB2c, organic: form.organic,
+      expiresAt: expires.toISOString(), location: 'Bhopal, MP', state: 'Madhya Pradesh',
     });
     router.push('/farmer/listings');
   };
@@ -289,16 +291,92 @@ export default function NewListingPage() {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green-900)" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                   <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Photos</h2>
                 </div>
-                <span className="badge badge-gray">OPTIONAL</span>
+                <span className="badge badge-gray">{images.length}/4</span>
               </div>
-              <div style={{
-                border: '2px dashed var(--border)', borderRadius: 'var(--radius-md)',
-                padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', gap: '0.5rem', color: 'var(--text-muted)',
-              }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-                <span style={{ fontSize: '0.85rem' }}>Add Photo</span>
-              </div>
+
+              {/* Image Previews */}
+              {images.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  {images.map((img, i) => (
+                    <div key={i} style={{ position: 'relative', paddingTop: '100%', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid var(--border)' }}>
+                      <img src={img} alt={`Crop photo ${i + 1}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))} style={{
+                        position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer',
+                        fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload Area */}
+              {images.length < 4 && (
+                <label style={{
+                  border: '2px dashed var(--border)', borderRadius: 'var(--radius-md)',
+                  padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', gap: '0.4rem', color: 'var(--text-muted)',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--green-600)'; e.currentTarget.style.background = 'var(--green-50)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <input type="file" accept="image/*" capture="environment" multiple hidden onChange={e => {
+                    setPhotoError(null);
+                    const files = Array.from(e.target.files || []);
+                    const remaining = 4 - images.length;
+                    let rejected = false;
+                    
+                    files.slice(0, remaining).forEach(file => {
+                      if (file.size > 5 * 1024 * 1024) return; // Max 5MB
+                      
+                      // Timestamp check: must be today
+                      const fd = new Date(file.lastModified);
+                      const td = new Date();
+                      if (fd.getFullYear() !== td.getFullYear() || fd.getMonth() !== td.getMonth() || fd.getDate() !== td.getDate()) {
+                        rejected = true;
+                        return;
+                      }
+
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = reader.result as string;
+                        // Compress via canvas
+                        const img = new window.Image();
+                        img.onload = () => {
+                          const canvas = document.createElement('canvas');
+                          const MAX = 800;
+                          let w = img.width, h = img.height;
+                          if (w > MAX || h > MAX) {
+                            if (w > h) { h = (h / w) * MAX; w = MAX; }
+                            else { w = (w / h) * MAX; h = MAX; }
+                          }
+                          canvas.width = w; canvas.height = h;
+                          const ctx = canvas.getContext('2d');
+                          ctx?.drawImage(img, 0, 0, w, h);
+                          const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                          setImages(prev => prev.length < 4 ? [...prev, compressed] : prev);
+                        };
+                        img.src = result;
+                      };
+                      reader.readAsDataURL(file);
+                    });
+                    
+                    if (rejected) {
+                      setPhotoError('Old photos are not allowed. Please capture or upload a photo taken today.');
+                    }
+                    e.target.value = ''; // Reset
+                  }} />
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>Tap to add photos</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Real-time only (today&apos;s date) · Max 5MB</span>
+                </label>
+              )}
+              {photoError && (
+                <div style={{ color: '#C1121F', fontSize: '0.85rem', marginTop: '0.75rem', textAlign: 'center', background: '#FEE2E2', padding: '0.5rem', borderRadius: '4px' }}>
+                  ⚠ {photoError}
+                </div>
+              )}
             </div>
 
             {/* ── Action Buttons ─────────────────────────────────── */}

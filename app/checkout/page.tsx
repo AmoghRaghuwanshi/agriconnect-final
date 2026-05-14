@@ -1,22 +1,23 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { useOrderStore } from '@/store/orderStore';
 import { useCartStore } from '@/store/cartStore';
 import { useListingStore } from '@/store/listingStore';
-import DashboardNav from '@/components/shared/DashboardNav';
+import Header from '@/components/shared/Header';
+import { Check, ShieldCheck, MapPin } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuthStore();
   const { addOrder } = useOrderStore();
-  const { items: cartItems, clearCart, total } = useCartStore();
+  const { items: cartItems, total } = useCartStore();
   const { getById: getListingById } = useListingStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [address, setAddress] = useState({ label: 'Home', line1: '42 Arera Colony', city: 'Bhopal', state: 'MP', pincode: '462016' });
+  const [address, setAddress] = useState({ label: 'Home', line1: '', city: '', state: '', pincode: '' });
   const [addressError, setAddressError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,17 +26,55 @@ export default function CheckoutPage() {
     if (mounted && !isAuthenticated) router.push('/auth/consumer');
   }, [mounted, isAuthenticated, router]);
 
+  // Group items by farmer for display AND order creation
+  type FarmerGroupItem = {
+    listingId: string;
+    cropName: string;
+    quantityKg: number;
+    pricePerKg: number;
+    totalAmount: number;
+  };
+
+  interface FarmerGroup {
+    farmerId: string;
+    farmerName: string;
+    farmName: string;
+    items: FarmerGroupItem[];
+  }
+
+  const farmerGroups = useMemo(() => {
+    const map = new Map<string, FarmerGroup>();
+    for (const item of cartItems) {
+      const listing = getListingById(item.listing_id);
+      const farmName = listing?.farmName ?? 'Farm';
+
+      let group = map.get(item.farmer_id);
+      if (!group) {
+        group = { farmerId: item.farmer_id, farmerName: item.farmer_name, farmName, items: [] };
+        map.set(item.farmer_id, group);
+      }
+      group.items.push({
+        listingId: item.listing_id,
+        cropName: item.crop_name,
+        quantityKg: item.quantity_kg,
+        pricePerKg: item.price_per_kg,
+        totalAmount: item.price_per_kg * item.quantity_kg,
+      });
+    }
+    return Array.from(map.values());
+  }, [cartItems, getListingById]);
+
   if (!mounted || !user) return null;
 
   // Redirect to marketplace if cart is empty
   if (cartItems.length === 0) {
     return (
       <main style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
-        <DashboardNav />
-        <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+        <Header />
+        <div className="empty-state">
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🛒</div>
-          <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>Your cart is empty</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+          <div className="empty-state-title">Your cart is empty</div>
+          <div className="empty-state-text">
             Add items from the marketplace before checking out.
           </div>
           <Link href="/marketplace" className="btn btn-primary">Browse Marketplace</Link>
@@ -58,42 +97,72 @@ export default function CheckoutPage() {
     setAddressError('');
     setLoading(true);
 
-    // Group items by farmer and create one order per farmer-item
+    // Group items by farmer and create ONE order per farmer
     const orderIds: string[] = [];
-    for (const item of cartItems) {
-      // Look up farmer details from the listing if available
-      const listing = getListingById(item.listing_id);
-      const farmName = listing?.farmName ?? 'Farm';
+    const orderData: { farmerId: string; farmerName: string; farmName: string; items: FarmerGroupItem[] }[] = [];
 
+    for (const group of farmerGroups) {
+      const totalAmount = group.items.reduce((sum, i) => sum + i.totalAmount, 0);
       const oid = await addOrder({
-        buyerId: user.id, buyerName: user.name,
-        farmerId: item.farmer_id, farmerName: item.farmer_name, farmName,
-        listingId: item.listing_id, cropName: item.crop_name,
-        orderType: 'B2C', quantityKg: item.quantity_kg, pricePerKg: item.price_per_kg,
-        totalAmount: item.price_per_kg * item.quantity_kg,
-        orderStatus: 'PENDING', paymentStatus: 'PENDING',
+        buyerId: user.id,
+        buyerName: user.name,
+        farmerId: group.farmerId,
+        farmerName: group.farmerName,
+        farmName: group.farmName,
+        listingId: group.items.map(i => i.listingId).join(','),
+        cropName: group.items.map(i => i.cropName).join(', '),
+        orderType: 'B2C',
+        quantityKg: group.items.reduce((sum, i) => sum + i.quantityKg, 0),
+        pricePerKg: totalAmount / group.items.reduce((sum, i) => sum + i.quantityKg, 0),
+        totalAmount,
+        orderStatus: 'PENDING',
+        paymentStatus: 'PENDING',
         deliveryAddress: address,
       });
       orderIds.push(oid);
+      orderData.push(group);
     }
 
-    // Store order IDs in sessionStorage — cart will be cleared AFTER payment succeeds
-    sessionStorage.setItem('checkout_order_ids', JSON.stringify(orderIds));
-    sessionStorage.setItem('checkout_total', String(subtotal));
+    // Store order data in localStorage — survives tab close
+    localStorage.setItem('checkout_order_ids', JSON.stringify(orderIds));
+    localStorage.setItem('checkout_order_data', JSON.stringify(orderData));
+    localStorage.setItem('checkout_total', String(subtotal));
     setTimeout(() => router.push('/checkout/payment'), 500);
   };
 
   return (
     <main style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
-      <DashboardNav />
-      <div className="container" style={{ padding: '2rem 1.5rem', maxWidth: '900px', margin: '0 auto' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem' }}>🛒 Checkout</h1>
+      <Header />
+      <div className="container" style={{ padding: '2rem 1.5rem 4rem', maxWidth: '48rem', margin: '0 auto' }}>
 
-        <div className="grid-sidebar">
+        {/* Step Indicator */}
+        <div className="step-indicator">
+          <div className="step-item completed">
+            <div className="step-dot"><Check size={12} /></div>
+            <span className="hide-mobile">Cart</span>
+          </div>
+          <div className="step-line completed" />
+          <div className="step-item active">
+            <div className="step-dot">2</div>
+            <span>Address</span>
+          </div>
+          <div className="step-line" />
+          <div className="step-item">
+            <div className="step-dot">3</div>
+            <span>Payment</span>
+          </div>
+        </div>
+
+        <h1 className="page-title" style={{ marginBottom: '2rem' }}>Checkout</h1>
+
+        <div className="bento-2" style={{ alignItems: 'start' }}>
           {/* Left — Address + Items */}
           <div>
-            <div className="card" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontFamily: 'Outfit,sans-serif', fontWeight: 700, fontSize: '1.1rem', marginBottom: '1.25rem' }}>Delivery Address</h2>
+            {/* Address Form */}
+            <div className="bill-breakdown" style={{ marginBottom: '1.25rem' }}>
+              <h2 className="flex items-center gap-2" style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '1.1rem', marginBottom: '1.25rem' }}>
+                <MapPin size={18} style={{ color: 'var(--green-700)' }} /> Delivery Address
+              </h2>
               <div className="form-group">
                 <label className="label">Label</label>
                 <select className="input" value={address.label} onChange={e => setAddress(a => ({ ...a, label: e.target.value }))}>
@@ -119,48 +188,93 @@ export default function CheckoutPage() {
                 <input className="input" placeholder="462001" value={address.pincode} onChange={e => setAddress(a => ({ ...a, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) }))} maxLength={6} required />
               </div>
               {addressError && (
-                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: '#FEF2F2', borderRadius: 'var(--radius-md)', border: '1px solid #FECACA', color: '#DC2626', fontSize: '0.85rem', fontWeight: 500 }}>
+                <div className="alert alert-error" style={{ marginTop: '0.75rem' }}>
                   ⚠️ {addressError}
                 </div>
               )}
             </div>
 
-            <div className="card" style={{ padding: '2rem' }}>
-              <h2 style={{ fontFamily: 'Outfit,sans-serif', fontWeight: 700, fontSize: '1.1rem', marginBottom: '1.25rem' }}>Order Items ({cartItems.length})</h2>
-              {cartItems.map(item => (
-                <div key={item.listing_id} className="card-flat" style={{ padding: '1rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{item.crop_name}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>From {item.farmer_name} · {item.quantity_kg} kg × ₹{item.price_per_kg}</div>
+            {/* Order Items grouped by farmer — display only, now 1 order per farmer */}
+            <div className="bill-breakdown">
+              <h2 className="flex items-center gap-2" style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '1.1rem', marginBottom: '1rem' }}>
+                Orders ({farmerGroups.length} from {farmerGroups.length} farm{farmerGroups.length !== 1 ? 's' : ''})
+              </h2>
+              {farmerGroups.map((group, i) => (
+                <div key={i} style={{ marginBottom: i < farmerGroups.length - 1 ? '1rem' : 0 }}>
+                  <div className="label-cap" style={{ marginBottom: '0.5rem' }}>
+                    Order for {group.farmerName}
                   </div>
-                  <div style={{ fontWeight: 700, color: 'var(--green-900)' }}>₹{(item.price_per_kg * item.quantity_kg).toLocaleString()}</div>
+                  {group.items.map(item => (
+                    <div key={item.listingId} className="flex justify-between items-center" style={{
+                      padding: '0.6rem 0', borderBottom: '1px solid rgba(0,0,0,0.04)',
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{item.cropName}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{item.quantityKg} kg × ₹{item.pricePerKg}</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        ₹{item.totalAmount.toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center" style={{ padding: '0.5rem 0 0', fontWeight: 700 }}>
+                    <span>Order Total</span>
+                    <span style={{ color: 'var(--green-900)' }}>₹{group.items.reduce((s, i) => s + i.totalAmount, 0).toLocaleString()}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right — Summary */}
-          <div className="card" style={{ padding: '2rem', alignSelf: 'flex-start', position: 'sticky', top: '5rem' }}>
-            <h2 style={{ fontFamily: 'Outfit,sans-serif', fontWeight: 700, fontSize: '1.1rem', marginBottom: '1.25rem' }}>Order Summary</h2>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-              <span>Subtotal ({cartItems.length} item{cartItems.length !== 1 ? 's' : ''})</span><span style={{ fontWeight: 600 }}>₹{subtotal.toLocaleString()}</span>
+          {/* Right — Bill Summary */}
+          <div style={{ position: 'sticky', top: '5rem' }}>
+            <div className="bill-breakdown">
+              <h2 className="flex items-center gap-2" style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: '1.1rem', marginBottom: '1rem' }}>
+                Bill Details
+              </h2>
+
+              <div className="bill-row">
+                <span className="bill-label">Subtotal ({farmerGroups.length} order{farmerGroups.length !== 1 ? 's' : ''})</span>
+                <span className="bill-value">₹{subtotal.toLocaleString()}</span>
+              </div>
+              <div className="bill-row">
+                <span className="bill-label">Delivery</span>
+                <span className="bill-free">FREE</span>
+              </div>
+              <div className="bill-row">
+                <span className="bill-label">Platform Fee</span>
+                <span className="bill-free">₹0</span>
+              </div>
+
+              <div className="flex items-center gap-2" style={{
+                background: 'rgba(5, 150, 105, 0.05)', borderRadius: '8px',
+                padding: '0.6rem 0.75rem', margin: '0.75rem 0', border: '1px solid rgba(5, 150, 105, 0.1)',
+              }}>
+                <ShieldCheck size={14} style={{ color: 'var(--green-700)', flexShrink: 0 }} />
+                <div style={{ fontSize: '0.72rem', color: 'var(--green-900)' }}>
+                  100% Quality Guarantee on all produce
+                </div>
+              </div>
+
+              <div className="bill-row total">
+                <span>Total</span>
+                <span style={{ fontFamily: 'Outfit, sans-serif', color: 'var(--green-900)', fontSize: '1.25rem' }}>
+                  ₹{subtotal.toLocaleString()}
+                </span>
+              </div>
+
+              <button
+                className="btn btn-primary w-full"
+                disabled={loading}
+                style={{ justifyContent: 'center', marginTop: '1.25rem', padding: '0.875rem' }}
+                onClick={handlePlaceOrder}
+              >
+                {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem' }} /> : 'Proceed to Payment →'}
+              </button>
+              <Link href="/cart" className="btn btn-ghost btn-sm w-full" style={{ justifyContent: 'center', marginTop: '0.5rem' }}>
+                ← Back to Cart
+              </Link>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-              <span>Delivery</span><span style={{ fontWeight: 600, color: 'var(--green-900)' }}>FREE</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-              <span>Platform Fee</span><span style={{ fontWeight: 600, color: 'var(--green-900)' }}>₹0</span>
-            </div>
-            <div style={{ borderTop: '2px solid var(--border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontWeight: 700 }}>Total</span>
-              <span style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--green-900)' }}>₹{subtotal.toLocaleString()}</span>
-            </div>
-            <button className="btn btn-primary" disabled={loading}
-              style={{ width: '100%', justifyContent: 'center', marginTop: '1.5rem', padding: '0.875rem' }}
-              onClick={handlePlaceOrder}>
-              {loading ? <span className="spinner" style={{ width: '1rem', height: '1rem' }} /> : 'Proceed to Payment →'}
-            </button>
-            <Link href="/cart" className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>← Back to Cart</Link>
           </div>
         </div>
       </div>

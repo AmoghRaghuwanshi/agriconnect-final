@@ -1,131 +1,222 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useMemo, useEffect } from 'react';
-import { useListingStore } from '@/store/listingStore';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useListingStore, type Listing } from '@/store/listingStore';
 import { useCartStore, type CartItem } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
+import {
+  Search, MapPin, User, Star, Sprout, Flame, TrendingDown,
+  Wheat, Leaf, ChevronRight, X,
+} from 'lucide-react';
+import Header from '@/components/shared/Header';
+import FloatingCartBar from '@/components/shared/FloatingCartBar';
+import { SkeletonFarmerStore } from '@/components/shared/SkeletonCard';
 
-// Emoji map for crop categories — keeps the visual style from the original
-const CROP_EMOJI: Record<string, string> = {
-  'Grains': '🌾',
-  'Vegetables': '🥬',
-  'Spices': '🌶️',
-  'Fruits': '🍎',
-};
+/* ── Category config ──────────────────────────────────────────────────── */
+const CATEGORIES = [
+  { key: 'All', icon: '🛒', label: 'All' },
+  { key: 'Grains', icon: '🌾', label: 'Grains' },
+  { key: 'Vegetables', icon: '🥦', label: 'Vegetables' },
+  { key: 'Spices', icon: '🌶️', label: 'Spices' },
+  { key: 'Fruits', icon: '🍎', label: 'Fruits' },
+];
 
-function getCropEmoji(category: string, cropName: string): string {
-  // Specific crop overrides
-  const lower = cropName.toLowerCase();
-  if (lower.includes('wheat')) return '🌾';
-  if (lower.includes('rice') || lower.includes('basmati')) return '🍚';
-  if (lower.includes('tomato')) return '🍅';
-  if (lower.includes('onion')) return '🧅';
-  if (lower.includes('potato')) return '🥔';
-  if (lower.includes('chili') || lower.includes('mirch')) return '🌶️';
-  if (lower.includes('maize') || lower.includes('corn')) return '🌽';
-  if (lower.includes('turmeric')) return '🟡';
-  return CROP_EMOJI[category] ?? '🌿';
+/* ── Quick filter config ──────────────────────────────────────────────── */
+type QuickFilter = 'popular' | 'under50' | 'organic' | 'new';
+
+const QUICK_FILTERS: { key: QuickFilter; label: string; icon: React.ReactNode }[] = [
+  { key: 'popular', label: 'Popular', icon: <Flame size={13} /> },
+  { key: 'under50', label: 'Under ₹50', icon: <TrendingDown size={13} /> },
+  { key: 'organic', label: 'Organic', icon: <Leaf size={13} /> },
+  { key: 'new', label: 'New Arrivals', icon: <Sprout size={13} /> },
+];
+
+/* ── Helper: crop images ──────────────────────────────────────────────── */
+function getCropImage(category: string, images?: string[]): string {
+  if (images && images.length > 0) return images[0];
+  switch (category) {
+    case 'Grains': return 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=400&q=80';
+    case 'Vegetables': return 'https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?auto=format&fit=crop&w=400&q=80';
+    case 'Spices': return 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=400&q=80';
+    case 'Fruits': return 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=400&q=80';
+    default: return 'https://images.unsplash.com/photo-1595856720188-75f80b9125cc?auto=format&fit=crop&w=400&q=80';
+  }
 }
 
-/* Category tabs matching Stitch reference */
-const CATEGORIES = ['All Produce', 'Vegetables', 'Grains', 'Spices', 'Fruits', 'Organic'];
+function getInitials(name: string): string {
+  if (!name) return 'FM';
+  return name.split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2);
+}
 
+/* ── Helper: pseudo-rating from views ─────────────────────────────────── */
+function getFarmerRating(views: number): string {
+  if (views >= 100) return '4.8';
+  if (views >= 50) return '4.5';
+  if (views >= 20) return '4.2';
+  return '4.0';
+}
+
+/* ── Farmer group type ────────────────────────────────────────────────── */
+interface FarmerGroup {
+  farmerId: string;
+  farmerName: string;
+  farmName: string;
+  location: string;
+  state: string;
+  totalViews: number;
+  listings: Listing[];
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════════════════════════════ */
 export default function MarketplacePage() {
-  const { listings } = useListingStore();
-  const { addItem, items: cartItems } = useCartStore();
-  const { isAuthenticated, user } = useAuthStore();
+  const { listings, fetchListings, isLoaded } = useListingStore();
+  const { addItem, items: cartItems, updateQuantity, removeItem } = useCartStore();
+  const { isAuthenticated } = useAuthStore();
   const router = useRouter();
 
   const [search, setSearch] = useState('');
-  const [categoryTab, setCategoryTab] = useState('All Produce');
-  const [stateFilter, setStateFilter] = useState('All States');
-  const [sort, setSort] = useState('latest');
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [activeQuickFilters, setActiveQuickFilters] = useState<Set<QuickFilter>>(new Set());
   const [mounted, setMounted] = useState(false);
-  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  const fetchListings = useListingStore((s) => s.fetchListings);
+  useEffect(() => { 
+    setMounted(true); 
+    if (!isLoaded) fetchListings();
+  }, [isLoaded, fetchListings]);
 
+  // Close autocomplete on outside click
   useEffect(() => {
-    setMounted(true);
-    fetchListings(); // Load from Neon DB
-    
-    // Read search param from URL (from landing page search)
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const q = params.get('q');
-      if (q) setSearch(q);
-    }
-  }, [fetchListings]);
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowAutocomplete(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  // Get only active listings (visible to consumers)
+  /* ── Active listings ──────────────────────────────────────────────── */
   const activeListings = useMemo(() =>
     listings.filter(l => l.status === 'ACTIVE'),
     [listings]
   );
 
-  // Derive unique states for filter
-  const stateNames = useMemo(() => {
-    const names = new Set(activeListings.map(l => l.state).filter(Boolean));
-    return ['All States', ...Array.from(names).sort()];
-  }, [activeListings]);
+  /* ── Autocomplete suggestions ─────────────────────────────────────── */
+  const suggestions = useMemo(() => {
+    if (!search.trim() || search.trim().length < 2) return [];
+    const q = search.toLowerCase();
+    const results: { type: 'crop' | 'farmer' | 'location'; text: string; sub: string }[] = [];
+    const seen = new Set<string>();
 
-  // Apply search, filter, and sort
+    for (const l of activeListings) {
+      // Crop matches
+      if (l.cropName.toLowerCase().includes(q) && !seen.has(`crop-${l.cropName}`)) {
+        seen.add(`crop-${l.cropName}`);
+        results.push({ type: 'crop', text: l.cropName, sub: l.category });
+      }
+      // Farmer matches
+      if (l.farmerName.toLowerCase().includes(q) && !seen.has(`farmer-${l.farmerId}`)) {
+        seen.add(`farmer-${l.farmerId}`);
+        results.push({ type: 'farmer', text: l.farmerName, sub: l.location });
+      }
+      // Variety matches
+      if (l.variety.toLowerCase().includes(q) && !seen.has(`crop-${l.variety}`)) {
+        seen.add(`crop-${l.variety}`);
+        results.push({ type: 'crop', text: l.variety, sub: l.cropName });
+      }
+      // Location matches
+      if (l.location.toLowerCase().includes(q) && !seen.has(`loc-${l.location}`)) {
+        seen.add(`loc-${l.location}`);
+        results.push({ type: 'location', text: l.location, sub: `${l.state}` });
+      }
+    }
+    return results.slice(0, 8);
+  }, [search, activeListings]);
+
+  /* ── Apply all filters ────────────────────────────────────────────── */
   const filtered = useMemo(() => {
     let result = activeListings;
 
-    // Search — matches crop name, farmer name, location
+    // Search filter
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(l =>
-        (l.cropName || '').toLowerCase().includes(q) ||
-        (l.farmerName || '').toLowerCase().includes(q) ||
-        (l.location || '').toLowerCase().includes(q) ||
-        (l.variety || '').toLowerCase().includes(q)
+        l.cropName.toLowerCase().includes(q) ||
+        l.farmerName.toLowerCase().includes(q) ||
+        l.location.toLowerCase().includes(q) ||
+        l.variety.toLowerCase().includes(q)
       );
     }
 
     // Category filter
-    if (categoryTab !== 'All Produce') {
-      if (categoryTab === 'Organic') {
-        result = result.filter(l => l.organic);
-      } else {
-        result = result.filter(l => l.category === categoryTab);
-      }
+    if (categoryFilter !== 'All') {
+      result = result.filter(l => l.category === categoryFilter);
     }
 
-    // State filter
-    if (stateFilter !== 'All States') {
-      result = result.filter(l => l.state === stateFilter);
+    // Quick filters
+    if (activeQuickFilters.has('popular')) {
+      result = result.filter(l => l.views >= 50);
     }
-
-    // Sort
-    switch (sort) {
-      case 'price-low':
-        result = [...result].sort((a, b) => a.pricePerKg - b.pricePerKg);
-        break;
-      case 'price-high':
-        result = [...result].sort((a, b) => b.pricePerKg - a.pricePerKg);
-        break;
-      case 'accuracy':
-        result = [...result].sort((a, b) => b.views - a.views);
-        break;
-      case 'latest':
-      default:
-        result = [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        break;
+    if (activeQuickFilters.has('under50')) {
+      result = result.filter(l => l.pricePerKg < 50);
+    }
+    if (activeQuickFilters.has('organic')) {
+      result = result.filter(l =>
+        l.description.toLowerCase().includes('organic') ||
+        l.farmName.toLowerCase().includes('organic')
+      );
+    }
+    if (activeQuickFilters.has('new')) {
+      const weekAgo = new Date(Date.now() - 7 * 86400000);
+      result = result.filter(l => new Date(l.createdAt) >= weekAgo);
     }
 
     return result;
-  }, [activeListings, search, categoryTab, stateFilter, sort]);
+  }, [activeListings, search, categoryFilter, activeQuickFilters]);
 
-  const handleAddToCart = (listing: typeof activeListings[0]) => {
+  /* ── Group by farmer ──────────────────────────────────────────────── */
+  const farmerGroups = useMemo(() => {
+    const map = new Map<string, FarmerGroup>();
+
+    for (const listing of filtered) {
+      let group = map.get(listing.farmerId);
+      if (!group) {
+        group = {
+          farmerId: listing.farmerId,
+          farmerName: listing.farmerName,
+          farmName: listing.farmName,
+          location: listing.location,
+          state: listing.state,
+          totalViews: 0,
+          listings: [],
+        };
+        map.set(listing.farmerId, group);
+      }
+      group.listings.push(listing);
+      group.totalViews += listing.views;
+    }
+
+    // Sort: most popular farmers first
+    return Array.from(map.values()).sort((a, b) => b.totalViews - a.totalViews);
+  }, [filtered]);
+
+  /* ── Cart helpers ─────────────────────────────────────────────────── */
+  const getCartItem = useCallback((listingId: string) =>
+    cartItems.find(i => i.listing_id === listingId),
+    [cartItems]
+  );
+
+  const handleAdd = useCallback((listing: typeof activeListings[0]) => {
     if (!isAuthenticated) {
       router.push('/auth/consumer');
       return;
     }
-
     const cartItem: CartItem = {
       id: `cart-${listing.id}-${Date.now()}`,
       listing_id: listing.id,
@@ -135,257 +226,286 @@ export default function MarketplacePage() {
       farmer_name: listing.farmerName,
       farmer_id: listing.farmerId,
       min_order_kg: listing.minOrderKg,
+      image_url: getCropImage(listing.category, listing.images),
     };
-
     addItem(cartItem);
-    setAddedIds(prev => new Set(prev).add(listing.id));
-    // Reset feedback after 2s
-    setTimeout(() => {
-      setAddedIds(prev => {
-        const next = new Set(prev);
-        next.delete(listing.id);
-        return next;
-      });
-    }, 2000);
-  };
+  }, [isAuthenticated, router, addItem]);
 
-  const isInCart = (listingId: string) =>
-    cartItems.some(i => i.listing_id === listingId);
+  const handleIncrement = useCallback((listingId: string, currentQty: number, minOrder: number) => {
+    updateQuantity(listingId, currentQty + minOrder);
+  }, [updateQuantity]);
 
-  if (!mounted) return null;
+  const handleDecrement = useCallback((listingId: string, currentQty: number, minOrder: number) => {
+    const newQty = currentQty - minOrder;
+    if (newQty <= 0) {
+      removeItem(listingId);
+    } else {
+      updateQuantity(listingId, newQty);
+    }
+  }, [updateQuantity, removeItem]);
+
+  const toggleQuickFilter = useCallback((key: QuickFilter) => {
+    setActiveQuickFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  if (!mounted) {
+    return (
+      <main style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
+        <Header />
+        <div style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)', padding: '1.25rem 0 1rem' }}>
+          <div className="container" style={{ maxWidth: '48rem' }}>
+            <div className="skeleton" style={{ height: '3rem', borderRadius: 'var(--radius-full)', marginBottom: '1rem' }} />
+            <div className="category-scroll" style={{ marginTop: '1rem' }}>
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="skeleton" style={{ width: '5rem', height: '4.5rem', borderRadius: 'var(--radius-lg)', flexShrink: 0 }} />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="container" style={{ padding: '1.5rem 1.5rem 6rem', maxWidth: '64rem', margin: '0 auto' }}>
+          <SkeletonFarmerStore />
+          <SkeletonFarmerStore />
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-base)', paddingBottom: '2rem' }}>
-      {/* ── Nav (Stitch buyer top bar) ───────────────────────────── */}
-      <nav style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        background: 'rgba(249,246,240,0.92)', backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid var(--border)',
-        height: 'var(--nav-height)', display: 'flex', alignItems: 'center',
-      }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            fontWeight: 800, fontSize: '1.25rem', color: 'var(--green-900)',
-            fontFamily: "var(--font-fraunces, 'Fraunces'), serif",
-            textDecoration: 'none',
-          }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-900)" strokeWidth="2.5">
-              <path d="M7 20l5-16 5 16"/><path d="M4 17c2-4 5-6 8-6s6 2 8 6"/>
-            </svg>
-            AgriConnect
-          </Link>
+    <main style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
+      <Header />
 
-          {/* Center search */}
-          <div className="hide-mobile" style={{ position: 'relative', flex: '0 1 420px' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }}>
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
+      {/* ── Search + Filters Section ──────────────────────────────────── */}
+      <div style={{
+        background: 'var(--bg-card)',
+        borderBottom: '1px solid var(--border)',
+        padding: '1.25rem 0 1rem',
+      }}>
+        <div className="container" style={{ maxWidth: '64rem' }}>
+          {/* Search */}
+          <div className="consumer-search-wrapper" ref={searchRef}>
+            <Search size={18} className="consumer-search-icon" />
             <input
               id="marketplace-search"
-              className="input"
-              placeholder="Search for fresh produce..."
+              className="consumer-search"
+              placeholder='Search for "tomato", "wheat", "Patel Farm"...'
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ paddingLeft: '2.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.875rem', background: 'var(--bg-muted)', border: '1px solid var(--border)' }}
+              onChange={e => {
+                setSearch(e.target.value);
+                setShowAutocomplete(e.target.value.trim().length >= 2);
+              }}
+              onFocus={() => {
+                if (search.trim().length >= 2) setShowAutocomplete(true);
+              }}
             />
+            {search && (
+              <button
+                onClick={() => { setSearch(''); setShowAutocomplete(false); }}
+                style={{
+                  position: 'absolute', right: '0.75rem', top: '50%',
+                  transform: 'translateY(-50%)', background: 'var(--bg-base)',
+                  border: 'none', borderRadius: '50%', width: '1.5rem',
+                  height: '1.5rem', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)',
+                }}
+              >
+                <X size={12} />
+              </button>
+            )}
+
+            {/* Autocomplete dropdown */}
+            {showAutocomplete && suggestions.length > 0 && (
+              <div className="search-autocomplete">
+                {suggestions.map((s, i) => (
+                  <div
+                    key={`${s.type}-${s.text}-${i}`}
+                    className="search-autocomplete-item"
+                    onClick={() => {
+                      setSearch(s.text);
+                      setShowAutocomplete(false);
+                    }}
+                  >
+                    <div style={{ color: 'var(--text-muted)' }}>
+                      {s.type === 'crop' && <Wheat size={16} />}
+                      {s.type === 'farmer' && <User size={16} />}
+                      {s.type === 'location' && <MapPin size={16} />}
+                    </div>
+                    <div>
+                      <div className="search-match">{s.text}</div>
+                      <div className="search-sub">{s.sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <Link href="/cart" style={{
-              position: 'relative', color: 'var(--text-primary)',
-              textDecoration: 'none', display: 'flex', alignItems: 'center', padding: '0.4rem',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-                <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
-              </svg>
-              {cartItems.length > 0 && (
-                <span style={{
-                  position: 'absolute', top: -2, right: -4, background: 'var(--terra-600)', color: '#fff',
-                  borderRadius: '50%', width: 18, height: 18, fontSize: '0.65rem', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>{cartItems.length}</span>
-              )}
-            </Link>
-            {isAuthenticated ? (
-              <Link href={user?.role === 'FARMER' ? '/farmer/dashboard' : '/orders'} style={{
-                width: 32, height: 32, borderRadius: '50%', background: 'var(--green-100)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.8rem', textDecoration: 'none', color: 'var(--green-900)', fontWeight: 700,
-              }}>
-                {user?.name?.charAt(0) || '?'}
-              </Link>
-            ) : (
-              <Link href="/auth/consumer" className="btn btn-primary btn-sm">Sign In</Link>
+          {/* Category Carousel */}
+          <div className="category-scroll" style={{ marginTop: '1rem' }}>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.key}
+                className={`category-pill ${categoryFilter === cat.key ? 'active' : ''}`}
+                onClick={() => setCategoryFilter(cat.key)}
+              >
+                <span className="category-pill-icon">{cat.icon}</span>
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Filter Chips */}
+          <div className="filter-chips" style={{ marginTop: '0.75rem' }}>
+            {QUICK_FILTERS.map(f => (
+              <button
+                key={f.key}
+                className={`filter-chip ${activeQuickFilters.has(f.key) ? 'active' : ''}`}
+                onClick={() => toggleQuickFilter(f.key)}
+              >
+                {f.icon} {f.label}
+              </button>
+            ))}
+            {(categoryFilter !== 'All' || activeQuickFilters.size > 0 || search) && (
+              <button
+                className="filter-chip"
+                style={{ color: '#DC2626', borderColor: '#FECACA' }}
+                onClick={() => {
+                  setCategoryFilter('All');
+                  setActiveQuickFilters(new Set());
+                  setSearch('');
+                }}
+              >
+                <X size={13} /> Clear All
+              </button>
             )}
           </div>
         </div>
-      </nav>
-
-      {/* ── Category Tabs (Stitch: horizontal pill tabs) ──────────── */}
-      <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-card)', overflowX: 'auto' }}>
-        <div className="container" style={{ display: 'flex', gap: '0.25rem', padding: '0.5rem 1.5rem' }}>
-          {CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setCategoryTab(cat)} style={{
-              padding: '0.5rem 1rem', border: 'none', cursor: 'pointer',
-              borderBottom: categoryTab === cat ? '2px solid var(--terra-600)' : '2px solid transparent',
-              color: categoryTab === cat ? 'var(--terra-600)' : 'var(--text-secondary)',
-              fontWeight: categoryTab === cat ? 700 : 500, fontSize: '0.875rem',
-              background: 'transparent', fontFamily: 'inherit', whiteSpace: 'nowrap',
-              transition: 'all 0.15s',
-            }}>
-              {cat}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* ── Hero Banner (Stitch: seasonal harvest) ────────────────── */}
-      <div style={{
-        background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 60%, #40916C 100%)',
-        color: '#fff', padding: '3.5rem 0', position: 'relative', overflow: 'hidden',
-      }}>
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'radial-gradient(circle at 80% 40%, rgba(255,255,255,0.08) 0%, transparent 50%)',
-        }} />
-        <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-          <span className="badge badge-green" style={{ marginBottom: '0.75rem', display: 'inline-flex' }}>SEASONAL HARVEST</span>
-          <h1 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.75rem)', fontWeight: 800, maxWidth: '580px', lineHeight: 1.15, marginBottom: '0.75rem', fontStyle: 'italic', color: '#fff' }}>
-            Direct from the Soil to Your Table
-          </h1>
-          <p style={{ maxWidth: '480px', fontSize: '0.95rem', lineHeight: 1.6, opacity: 0.85, marginBottom: '1.5rem' }}>
-            Experience the unmatched flavor of locally grown, sustainably sourced produce. Picked fresh this morning, delivered to you today.
-          </p>
-          <Link href="#products" className="btn" style={{ background: 'var(--terra-600)', color: '#fff', padding: '0.75rem 1.75rem', borderRadius: 'var(--radius-full)' }}>
-            Shop Fresh Arrivals
-          </Link>
-        </div>
-      </div>
-
-      {/* ── Value Propositions (3 cards) ──────────────────────────── */}
-      <div className="container" style={{ padding: '2rem 1.5rem 0' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-          {[
-            { icon: '🚚', title: 'Same-Day Delivery', desc: 'Order by noon for evening delivery straight from the farm.' },
-            { icon: '✅', title: 'Certified Organic', desc: 'Every partner farm is vetted for sustainable, pesticide-free practices.' },
-            { icon: '🤝', title: 'Fair Trade Certified', desc: 'Fair pricing that supports the livelihood of our rural growers.' },
-          ].map(v => (
-            <div key={v.title} className="card" style={{ padding: '1.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.75rem', marginBottom: '0.75rem' }}>{v.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.35rem' }}>{v.title}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{v.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Products Grid ────────────────────────────────────────── */}
-      <div className="container" style={{ padding: '0 1.5rem 2rem' }} id="products">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, fontStyle: 'italic' }}>
-            {categoryTab === 'All Produce' ? 'Trending This Week' : categoryTab}
-          </h2>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <select id="state-filter" className="input" style={{ maxWidth: 140, cursor: 'pointer', fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
-              value={stateFilter} onChange={e => setStateFilter(e.target.value)}>
-              {stateNames.map(s => <option key={s}>{s}</option>)}
-            </select>
-            <select id="sort-select" className="input" style={{ maxWidth: 140, cursor: 'pointer', fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
-              value={sort} onChange={e => setSort(e.target.value)}>
-              <option value="latest">Latest</option>
-              <option value="price-low">Price ↑</option>
-              <option value="price-high">Price ↓</option>
-              <option value="accuracy">Popular</option>
-            </select>
-          </div>
-        </div>
-
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1rem' }}>
-          Showing {filtered.length} listing{filtered.length !== 1 ? 's' : ''}
-          {search && <> for &quot;{search}&quot;</>}
+      {/* ── Results Count ─────────────────────────────────────────────── */}
+      <div className="container" style={{ padding: '1.5rem 1.5rem 0', maxWidth: '64rem', margin: '0 auto' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          {filtered.length} item{filtered.length !== 1 ? 's' : ''} from {farmerGroups.length} farm{farmerGroups.length !== 1 ? 's' : ''}
+          {search && <> matching &quot;{search}&quot;</>}
+          {categoryFilter !== 'All' && <> in <strong>{categoryFilter}</strong></>}
         </p>
+      </div>
 
-        {filtered.length === 0 ? (
-          <div className="card" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-            <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>No listings found</div>
+      {/* ── Farmer Store Cards ────────────────────────────────────────── */}
+      <div className="container" style={{ padding: '0 1.5rem 6rem', maxWidth: '64rem', margin: '0 auto' }}>
+        {farmerGroups.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+            <Search size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 1rem' }} />
+            <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>No produce found</div>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
               Try adjusting your search or filters.
             </div>
-            <button className="btn btn-outline" onClick={() => { setSearch(''); setCategoryTab('All Produce'); setStateFilter('All States'); }}>
+            <button
+              className="btn btn-outline"
+              onClick={() => { setSearch(''); setCategoryFilter('All'); setActiveQuickFilters(new Set()); }}
+            >
               Clear All Filters
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem' }}>
-            {filtered.map(listing => {
-              const justAdded = addedIds.has(listing.id);
-              const alreadyInCart = isInCart(listing.id);
-
-              return (
-                <div key={listing.id} className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  {/* Image */}
-                  <Link href={`/marketplace/${listing.id}`} style={{ textDecoration: 'none', display: 'block', position: 'relative' }}>
-                    <div style={{
-                      height: '11rem',
-                      background: `linear-gradient(135deg, var(--green-50), var(--olive-100))`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '4rem', cursor: 'pointer',
-                    }}>
-                      {getCropEmoji(listing.category, listing.cropName)}
-                    </div>
-                    {listing.organic && (
-                      <span className="badge badge-green" style={{ position: 'absolute', top: 10, left: 10 }}>Organic</span>
-                    )}
-                    {listing.views >= 50 && (
-                      <span className="badge badge-amber" style={{ position: 'absolute', top: 10, left: listing.organic ? 80 : 10 }}>Bestseller</span>
-                    )}
-                    {/* Wishlist heart */}
-                    <button style={{
-                      position: 'absolute', top: 10, right: 10,
-                      width: 30, height: 30, borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.9)', border: '1px solid var(--border)',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }} onClick={e => e.preventDefault()}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-                    </button>
-                  </Link>
-                  <div style={{ padding: '1rem 1.25rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Link href={`/marketplace/${listing.id}`} style={{ textDecoration: 'none' }}>
-                      <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>{listing.cropName}</h3>
-                    </Link>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
-                      {listing.farmerName} · {listing.location}
-                    </p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                      <div>
-                        <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)', fontFamily: "var(--font-outfit, 'Outfit'), sans-serif" }}>₹{listing.pricePerKg}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}> / kg</span>
-                      </div>
-                      <button
-                        id={`add-to-cart-${listing.id}`}
-                        style={{
-                          width: 32, height: 32, borderRadius: '50%',
-                          background: justAdded ? 'var(--green-700)' : alreadyInCart ? 'var(--green-100)' : 'var(--green-900)',
-                          color: justAdded || !alreadyInCart ? '#fff' : 'var(--green-900)',
-                          border: 'none', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          transition: 'all 0.15s',
-                        }}
-                        onClick={() => handleAddToCart(listing)}
-                      >
-                        {justAdded ? '✓' : '+'}
-                      </button>
-                    </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+            {farmerGroups.map(group => (
+              <div key={group.farmerId} className="farmer-store-card" style={{ marginBottom: 0 }}>
+              {/* Farmer Header */}
+              <div className="farmer-store-header">
+                <div className="farmer-store-avatar">
+                  {(group.farmerName || 'Farmer').split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2)}
+                </div>
+                <div className="farmer-store-info">
+                  <div className="farmer-store-name">{group.farmName}</div>
+                  <div className="farmer-store-meta">
+                    <span className="farmer-store-rating">
+                      <Star size={10} /> {getFarmerRating(group.totalViews)}
+                    </span>
+                    <span className="meta-dot" />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <MapPin size={12} /> {group.location}
+                    </span>
+                    <span className="meta-dot" />
+                    <span>{group.listings.length} item{group.listings.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
-              );
-            })}
+                <ChevronRight size={18} style={{ color: 'var(--text-muted)' }} />
+              </div>
+
+              {/* Item Rows */}
+              <div className="farmer-store-items">
+                {group.listings.map(listing => {
+                  const cartItem = getCartItem(listing.id);
+                  const inCart = !!cartItem;
+                  const imageUrl = getCropImage(listing.category, listing.images);
+
+                  return (
+                    <div key={listing.id} className="item-card">
+                      {/* Image */}
+                      <Link href={`/marketplace/${listing.id}`}>
+                        <div
+                          className="item-card-img"
+                          style={{ backgroundImage: `url(${imageUrl})` }}
+                        />
+                      </Link>
+
+                      {/* Info */}
+                      <div className="item-card-info">
+                        <Link href={`/marketplace/${listing.id}`} style={{ textDecoration: 'none' }}>
+                          <div className="item-card-name">{listing.cropName}</div>
+                        </Link>
+                        <div className="item-card-variety">{listing.variety} · {listing.quantityRemaining.toLocaleString()} kg available</div>
+                        <div className="item-card-price">
+                          ₹{listing.pricePerKg}<span>/kg</span>
+                        </div>
+                        <div className="item-card-detail">Min order: {listing.minOrderKg} kg</div>
+                      </div>
+
+                      {/* ADD / Qty Control */}
+                      <div style={{ flexShrink: 0 }}>
+                        {!inCart ? (
+                          <button
+                            className="item-add-btn"
+                            onClick={() => handleAdd(listing)}
+                            id={`add-to-cart-${listing.id}`}
+                          >
+                            ADD
+                          </button>
+                        ) : (
+                          <div className="item-qty-control animate-pop-in">
+                            <button
+                              onClick={() => handleDecrement(listing.id, cartItem.quantity_kg, listing.minOrderKg)}
+                              aria-label="Decrease quantity"
+                            >
+                              −
+                            </button>
+                            <span className="qty-value">{cartItem.quantity_kg}</span>
+                            <button
+                              onClick={() => handleIncrement(listing.id, cartItem.quantity_kg, listing.minOrderKg)}
+                              aria-label="Increase quantity"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
           </div>
         )}
       </div>
+
+      {/* ── Floating Cart Bar ─────────────────────────────────────────── */}
+      <FloatingCartBar />
     </main>
   );
 }

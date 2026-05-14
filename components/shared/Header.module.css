@@ -1,0 +1,73 @@
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    height: 4rem;
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    color: var(--green-900);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.nav {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+}
+
+.navLink {
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color var(--transition-fast);
+}
+
+.navLink:hover {
+    color: var(--green-700);
+}
+
+.cartLink {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    padding: 0.3rem;
+}
+
+.cartBadge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    background: var(--green-900);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.verticalDivider {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--border);
+    margin: 0 0.5rem;
+}

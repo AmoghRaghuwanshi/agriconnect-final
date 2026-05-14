@@ -1,174 +1,125 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/store/authStore';
-import DashboardNav from '@/components/shared/DashboardNav';
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useAdminStore } from '@/store/adminStore';
+import { Users, CheckCircle, Ban, Download } from 'lucide-react';
 
-interface UserRecord {
-  id: string;
-  name: string;
-  role: string;
-  contact: string;
-  status: 'Active' | 'Suspended' | 'Pending KYC';
-  joined: string;
-}
-
-const INITIAL_USERS: UserRecord[] = [
-  { id: 'u1', name: 'Raju Patel', role: 'FARMER', contact: '+91 98765 43210', status: 'Active', joined: '1 Apr 2026' },
-  { id: 'u2', name: 'Harish Kumar', role: 'FARMER', contact: '+91 98765 43218', status: 'Active', joined: '5 Apr 2026' },
-  { id: 'u3', name: 'Sunita Kumari', role: 'FARMER', contact: '+91 98765 43220', status: 'Active', joined: '10 Apr 2026' },
-  { id: 'u4', name: 'Priya Sharma', role: 'CONSUMER', contact: 'priya@demo.app', status: 'Active', joined: '15 Mar 2026' },
-  { id: 'u5', name: 'Amit Kumar', role: 'CONSUMER', contact: 'amit@demo.app', status: 'Active', joined: '20 Mar 2026' },
-  { id: 'u6', name: 'Anita Desai', role: 'CONSUMER', contact: 'anita@demo.app', status: 'Suspended', joined: '25 Mar 2026' },
-  { id: 'u7', name: 'Rajesh Agarwal', role: 'WHOLESALER', contact: 'rajesh@vikas.com', status: 'Active', joined: '28 Mar 2026' },
-  { id: 'u8', name: 'Metro Foods', role: 'WHOLESALER', contact: 'metro@demo.app', status: 'Pending KYC', joined: '28 Apr 2026' },
-];
-
-export default function AdminUsersPage() {
-  const { user, isAuthenticated } = useAuthStore();
-  const router = useRouter();
+export default function AdminUsers() {
   const [mounted, setMounted] = useState(false);
+  const { users, suspendUser, activateUser } = useAdminStore();
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [viewingUser, setViewingUser] = useState<UserRecord | null>(null);
-  const [toast, setToast] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All Roles');
+  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [suspendModal, setSuspendModal] = useState<string | null>(null);
+  const [suspendReason, setSuspendReason] = useState('Policy violation');
 
   useEffect(() => { setMounted(true); }, []);
-  
-  useEffect(() => {
-    if (mounted && (!isAuthenticated || user?.role !== 'ADMIN')) router.push('/auth/admin');
-    
-    if (mounted && isAuthenticated && user?.role === 'ADMIN') {
-      fetch('/api/users')
-        .then(res => res.json())
-        .then(data => { if (data.users) setUsers(data.users); })
-        .catch(console.error);
-    }
-  }, [mounted, isAuthenticated, user, router]);
+  if (!mounted) return null;
 
-  if (!mounted || !user) return null;
+  const filtered = users.filter(u => {
+    const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()) || u.phone.includes(search);
+    const matchRole = roleFilter === 'All Roles' || u.role === roleFilter;
+    const matchStatus = statusFilter === 'All Status' || u.status === statusFilter;
+    return matchSearch && matchRole && matchStatus;
+  });
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2500);
-  };
+  const handleSuspend = (id: string) => { suspendUser(id, suspendReason); setSuspendModal(null); setSuspendReason('Policy violation'); };
 
-  let filtered = users;
-  if (search) {
-    const s = search.toLowerCase();
-    filtered = filtered.filter(u => 
-      (u.name || '').toLowerCase().includes(s) || 
-      (u.contact || '').toLowerCase().includes(s)
-    );
-  }
-  if (roleFilter !== 'ALL') filtered = filtered.filter(u => u.role === roleFilter);
-
-  const roleBadge: Record<string, string> = { FARMER: 'badge-green', CONSUMER: 'badge-blue', WHOLESALER: 'badge-purple' };
-
-  const handleToggleStatus = (u: UserRecord) => {
-    const newStatus = u.status === 'Active' ? 'Suspended' : 'Active';
-    setUsers(prev => prev.map(usr => usr.id === u.id ? { ...usr, status: newStatus as 'Active' | 'Suspended' } : usr));
-    showToast(`${newStatus === 'Suspended' ? '🚫' : '✅'} ${u.name} ${newStatus.toLowerCase()}`);
+  const exportCSV = () => {
+    const header = 'Name,Role,Email,Phone,Status,Joined\n';
+    const rows = filtered.map(u => `${u.name},${u.role},${u.email},${u.phone},${u.status},${u.joinDate}`).join('\n');
+    const blob = new Blob([header + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'users.csv'; a.click();
   };
 
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
-      <DashboardNav />
-      <div className="container" style={{ padding: '2rem 1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>👥 Users ({users.length})</h1>
-
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <input className="input" placeholder="🔍 Search by name, email, phone..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: '250px' }} />
-          <select className="input" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{ width: 'auto' }}>
-            <option value="ALL">All Roles</option>
-            <option value="FARMER">Farmers</option>
-            <option value="CONSUMER">Consumers</option>
-            <option value="WHOLESALER">Wholesalers</option>
-          </select>
-        </div>
-
-        <div className="card" style={{ padding: '1.5rem', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '650px' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                {['Name', 'Role', 'Contact', 'Status', 'Joined', 'Actions'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '0.75rem 0.5rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>{u.name}</td>
-                  <td style={{ padding: '0.75rem 0.5rem' }}><span className={`badge ${roleBadge[u.role]}`}>{u.role}</span></td>
-                  <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{u.contact}</td>
-                  <td style={{ padding: '0.75rem 0.5rem' }}><span className={`badge ${u.status === 'Active' ? 'badge-green' : u.status === 'Suspended' ? 'badge-red' : 'badge-amber'}`}>{u.status}</span></td>
-                  <td style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{u.joined}</td>
-                  <td style={{ padding: '0.75rem 0.5rem' }}>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setViewingUser(u)}>View</button>
-                    <button className="btn btn-ghost btn-sm" style={{ color: u.status === 'Active' ? '#DC2626' : 'var(--green-900)' }}
-                      onClick={() => handleToggleStatus(u)}>
-                      {u.status === 'Active' ? 'Suspend' : 'Activate'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <div style={{ maxWidth: '1200px' }}>
+      <div className="page-header" style={{ marginBottom: '2rem' }}>
+        <h1 className="page-title"><Users size={20} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.4rem' }} /> Users</h1>
+        <p className="page-subtitle">Manage all registered users</p>
       </div>
 
-      {/* View User Modal */}
-      {viewingUser && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setViewingUser(null); }}>
-          <div className="card" style={{ padding: '2rem', width: '90%', maxWidth: '420px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontWeight: 700, fontSize: '1.1rem' }}>User Profile</h3>
-              <button className="btn btn-ghost btn-sm" onClick={() => setViewingUser(null)}>✕</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {[
-                ['Name', viewingUser.name],
-                ['Role', viewingUser.role],
-                ['Contact', viewingUser.contact],
-                ['Status', viewingUser.status],
-                ['Joined', viewingUser.joined],
-                ['ID', viewingUser.id],
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-                  <span style={{ fontWeight: 600 }}>{value}</span>
-                </div>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <input type="text" placeholder="Search by name, email, phone..." className="input" style={{ flex: 1, minWidth: '250px' }} value={search} onChange={e => setSearch(e.target.value)} />
+        <select className="input" style={{ width: '150px' }} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+          <option>All Roles</option><option>FARMER</option><option>CONSUMER</option><option>WHOLESALER</option><option>ADMIN</option>
+        </select>
+        <select className="input" style={{ width: '150px' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option>All Status</option><option>ACTIVE</option><option>SUSPENDED</option>
+        </select>
+      </div>
+
+      <div className="card" style={{ overflowX: 'auto', padding: 0 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--border)', background: '#f8fafc' }}>
+              {['Name', 'Role', 'Email / Phone', 'Status', 'Joined', 'Actions'].map(h => (
+                <th key={h} style={{ textAlign: 'left', padding: '0.75rem 1rem', fontWeight: 600, fontSize: '0.85rem', color: '#475569' }}>{h}</th>
               ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(u => (
+              <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>{u.name}</td>
+                <td style={{ padding: '0.75rem 1rem' }}>
+                  <span className={`badge badge-${u.role === 'FARMER' ? 'green' : u.role === 'CONSUMER' ? 'olive' : u.role === 'WHOLESALER' ? 'blue' : 'gray'}`}>{u.role}</span>
+                </td>
+                <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                  <div>{u.email}</div>
+                  <div style={{ color: '#94a3b8' }}>{u.phone}</div>
+                </td>
+                <td style={{ padding: '0.75rem 1rem' }}>
+                  <span className={u.status === 'ACTIVE' ? 'badge badge-green' : 'badge badge-red'}>
+                    {u.status === 'ACTIVE' ? <><CheckCircle size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Active</> : <><Ban size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Suspended</>}
+                  </span>
+                </td>
+                <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: '#64748b' }}>{new Date(u.joinDate).toLocaleDateString()}</td>
+                <td style={{ padding: '0.75rem 1rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {u.status === 'ACTIVE' ? (
+                      <button className="btn btn-outline btn-sm" style={{ borderColor: '#ef4444', color: '#ef4444', fontSize: '0.75rem' }} onClick={() => setSuspendModal(u.id)}>Suspend</button>
+                    ) : (
+                      <button className="btn btn-outline btn-sm" style={{ borderColor: '#059669', color: '#059669', fontSize: '0.75rem' }} onClick={() => activateUser(u.id)}>Activate</button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <div className="empty-state" style={{ padding: '3rem' }}>
+            <div className="empty-state-icon"><Users size={40} style={{ color: 'var(--text-muted)' }} /></div>
+            <div className="empty-state-title">No users found</div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{filtered.length} user{filtered.length !== 1 ? 's' : ''} shown</span>
+        <button className="btn btn-outline" onClick={exportCSV}><Download size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.25rem' }} /> Export CSV</button>
+      </div>
+
+      {suspendModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ padding: '2rem', maxWidth: '400px', width: '90%' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem' }}>Suspend {users.find(u => u.id === suspendModal)?.name}?</h3>
+            <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1rem' }}>This will immediately log them out and prevent access.</p>
+            <div className="form-group" style={{ margin: '0 0 1rem' }}>
+              <label className="form-label">Reason (required)</label>
+              <select className="input" value={suspendReason} onChange={e => setSuspendReason(e.target.value)}>
+                <option>Spam</option><option>Policy violation</option><option>Requested by user</option><option>Fraudulent activity</option><option>Other</option>
+              </select>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-              <button className="btn btn-ghost" onClick={() => setViewingUser(null)}>Close</button>
-              <button className={`btn ${viewingUser.status === 'Active' ? '' : 'btn-primary'}`}
-                style={viewingUser.status === 'Active' ? { background: '#DC2626', color: '#fff' } : {}}
-                onClick={() => { handleToggleStatus(viewingUser); setViewingUser(null); }}>
-                {viewingUser.status === 'Active' ? '🚫 Suspend User' : '✅ Activate User'}
-              </button>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-ghost" onClick={() => setSuspendModal(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ background: '#ef4444', borderColor: '#ef4444' }} onClick={() => handleSuspend(suspendModal)}>Confirm Suspend</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Toast notification */}
-      {toast && (
-        <div style={{
-          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
-          background: 'var(--bg-card)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)', padding: '0.75rem 1.5rem',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12)', zIndex: 200,
-          fontWeight: 600, fontSize: '0.9rem', animation: 'fadeIn 0.3s ease',
-        }}>
-          {toast}
-        </div>
-      )}
-    </main>
+    </div>
   );
 }

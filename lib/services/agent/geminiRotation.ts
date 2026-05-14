@@ -13,6 +13,8 @@ const GEMINI_KEYS: string[] = [
   process.env.GEMINI_API_KEY_1 ?? '',
   process.env.GEMINI_API_KEY_2 ?? '',
   process.env.GEMINI_API_KEY_3 ?? '',
+  process.env.GEMINI_API_KEY_4 ?? '',
+  process.env.GEMINI_API_KEY_5 ?? '',
 ].filter(k => k.length > 0 && k !== 'placeholder');
 
 let currentKeyIndex = 0;
@@ -117,28 +119,36 @@ function getResponseHi(intent: string, params: Record<string, unknown>): string 
 
   switch (intent) {
     case 'CREATE_LISTING':
-      if (crop && qty && price) return `${qty} किलो ${cropLabel}, ₹${price}/किलो — listing बना रहा हूं।`;
+      if (crop && qty && price) return `${qty} किलो ${cropLabel}, ₹${price}/किलो — listing बना रही हूं।`;
       if (crop) return `${cropLabel} की listing बनाते हैं। quantity और price बताइए।`;
       return 'Listing बनाते हैं। Crop, variety, quantity, और price बताइए।';
     case 'CHECK_MANDI_PRICE':
-      return crop ? `${cropLabel} का mandi भाव दिखा रहा हूं।` : 'Mandi भाव दिखा रहा हूं।';
+      return crop ? `${cropLabel} का mandi भाव दिखा रही हूं।` : 'Mandi भाव दिखा रही हूं।';
+    case 'PRICE_FORECAST':
+      return crop ? `${cropLabel} का price forecast दिखा रही हूं — आगे क्या भाव होगा।` : 'Price forecast दिखा रही हूं।';
+    case 'CHECK_WEATHER':
+      return 'मौसम की जानकारी दिखा रही हूं — खेती के लिए सलाह भी मिलेगी।';
+    case 'NAVIGATE_DASHBOARD':
+      return 'Dashboard पे ले जा रही हूं।';
+    case 'NAVIGATE_LISTINGS':
+      return 'आपकी listings दिखा रही हूं।';
     case 'VIEW_ORDERS':
-      return 'आपके orders दिखा रहा हूं।';
+      return 'आपके orders दिखा रही हूं।';
     case 'VIEW_INCOME':
-      return 'आपकी कमाई दिखा रहा हूं।';
+      return 'आपकी कमाई दिखा रही हूं।';
     case 'VIEW_SCORE':
-      return 'आपका score दिखा रहा हूं।';
+      return 'आपका score दिखा रही हूं।';
     case 'MARK_OUT_FOR_DELIVERY':
-      return 'Delivery mark कर रहा हूं।';
+      return 'Delivery mark कर रही हूं।';
     case 'PAUSE_LISTING':
-      return 'Listing band कर रहा हूं।';
+      return 'Listing band कर रही हूं।';
     case 'RESUME_LISTING':
-      return 'Listing चालू कर रहा हूं।';
+      return 'Listing चालू कर रही हूं।';
     case 'EDIT_PRICE':
-      if (price && crop) return `${cropLabel} का price ₹${price} कर रहा हूं।`;
-      return price ? `Price ₹${price} कर रहा हूं।` : 'नया price बताइए।';
+      if (price && crop) return `${cropLabel} का price ₹${price} कर रही हूं।`;
+      return price ? `Price ₹${price} कर रही हूं।` : 'नया price बताइए।';
     default:
-      return 'बोलें: "100 kilo gehun, 21 rupye kilo" — या "meri orders dikhao"।';
+      return 'बोलें: listing बनाओ, mausam dikhao, price forecast, mandi bhav, orders dikhao, या dashboard।';
   }
 }
 

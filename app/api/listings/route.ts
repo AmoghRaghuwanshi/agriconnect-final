@@ -43,13 +43,14 @@ export async function POST(request: Request) {
 
   try {
     const id = `L${Date.now().toString(36).toUpperCase()}`;
+    const imageArr = Array.isArray(body.images) ? body.images : [];
     await sql`
-      INSERT INTO listings (id, farmer_id, farmer_name, farm_name, crop_name, variety, category, quantity_kg, quantity_remaining, price_per_kg, min_order_kg, harvest_date, storage_type, description, status, is_b2b, is_b2c, expires_at, location, state, organic)
+      INSERT INTO listings (id, farmer_id, farmer_name, farm_name, crop_name, variety, category, quantity_kg, quantity_remaining, price_per_kg, min_order_kg, harvest_date, storage_type, description, images, status, is_b2b, is_b2c, expires_at, location, state, organic)
       VALUES (
         ${id}, ${body.farmerId}, ${body.farmerName}, ${body.farmName}, ${body.cropName}, ${body.variety || ''},
         ${body.category || 'Vegetables'}, ${body.quantityKg}, ${body.quantityKg}, ${body.pricePerKg},
         ${body.minOrderKg || 1}, ${body.harvestDate || null}, ${body.storageType || null}, ${body.description || ''},
-        'ACTIVE', ${body.isB2b !== false}, ${body.isB2c !== false}, ${body.expiresAt || null},
+        ${imageArr}, 'ACTIVE', ${body.isB2b !== false}, ${body.isB2c !== false}, ${body.expiresAt || null},
         ${body.location || ''}, ${body.state || ''}, ${body.organic || false}
       )
     `;

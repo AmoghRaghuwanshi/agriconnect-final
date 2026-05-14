@@ -36,6 +36,22 @@ export function getIntentAction(result: IntentResult): VoiceAction {
       return { type: 'navigate', path: `/mandi${mqs ? `?${mqs}` : ''}` };
     }
 
+    case 'PRICE_FORECAST': {
+      const fqp = new URLSearchParams();
+      if (params.crop_name) fqp.set('crop', String(params.crop_name));
+      const fqs = fqp.toString();
+      return { type: 'navigate', path: `/farmer/forecast${fqs ? `?${fqs}` : ''}` };
+    }
+
+    case 'CHECK_WEATHER':
+      return { type: 'navigate', path: '/farmer/weather' };
+
+    case 'NAVIGATE_DASHBOARD':
+      return { type: 'navigate', path: '/farmer/dashboard' };
+
+    case 'NAVIGATE_LISTINGS':
+      return { type: 'navigate', path: '/farmer/listings' };
+
     case 'VIEW_ORDERS':
       return { type: 'navigate', path: '/farmer/orders' };
 

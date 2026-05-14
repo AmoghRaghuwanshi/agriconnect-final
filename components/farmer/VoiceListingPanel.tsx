@@ -199,7 +199,9 @@ export default function VoiceListingPanel({ onExtracted, pincode }: VoiceListing
       // TTS response
       if (data.response_hi && window.speechSynthesis) {
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(data.response_hi);
+        // Strip emojis so TTS doesn't read them as words
+        const clean = data.response_hi.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+        const utterance = new SpeechSynthesisUtterance(clean);
         utterance.lang = 'hi-IN';
         utterance.rate = 0.9;
         window.speechSynthesis.speak(utterance);
@@ -287,7 +289,7 @@ export default function VoiceListingPanel({ onExtracted, pincode }: VoiceListing
             fontWeight: 700,
             color: recognizing ? 'var(--terra-600, #D97757)' : 'var(--green-900)',
           }}>
-            {recognizing ? 'सुन रहा हूं... / Listening...' : 'Tap to speak'}
+            {recognizing ? 'सुन रही हूं... / Listening...' : 'Tap to speak'}
           </div>
         </div>
       )}

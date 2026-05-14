@@ -16,6 +16,11 @@ export default function MicFAB() {
   const actionHandled = useRef(false);
   const [minimized, setMinimized] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Defer rendering until client mount to avoid hydration mismatch
+  // (isSupported checks `window` which doesn't exist on the server)
+  useEffect(() => { setMounted(true); }, []);
 
   // Show hint tooltip briefly on first render
   useEffect(() => {
@@ -55,7 +60,7 @@ export default function MicFAB() {
     }
   }, [state]);
 
-  if (!isSupported) return null;
+  if (!mounted || !isSupported) return null;
 
   const handleClick = () => {
     if (state === 'LISTENING') {
@@ -83,9 +88,9 @@ export default function MicFAB() {
     state === 'ERROR' ? '❌' : '🎤';
 
   const stateLabel =
-    state === 'LISTENING' ? 'सुन रहा हूं... / Listening...' :
-    state === 'PROCESSING' ? 'समझ रहा हूं... / Processing...' :
-    state === 'SPEAKING' ? '✅ समझ गया / Understood' :
+    state === 'LISTENING' ? 'सुन रही हूं... / Listening...' :
+    state === 'PROCESSING' ? 'समझ रही हूं... / Processing...' :
+    state === 'SPEAKING' ? '✅ समझ गई / Understood' :
     state === 'ERROR' ? '⚠️ Error' : '';
 
   // Always show bubble when not IDLE (even without transcript yet)

@@ -188,6 +188,126 @@ export function ruleBasedIntent(input: string): IntentResult {
   const isViewVerb = hasViewIntent(text);
 
   // ═══════════════════════════════════════════════════════════════════════
+  // NAVIGATE_DASHBOARD — go home / dashboard
+  // ═══════════════════════════════════════════════════════════════════════
+  if (
+    text.includes('dashboard') ||
+    text.includes('home') ||
+    text.includes('ghar') ||
+    text.includes('घर') ||
+    text.includes('डैशबोर्ड') ||
+    text.includes('होम') ||
+    (text.includes('main') && text.includes('page'))
+  ) {
+    return { intent: 'NAVIGATE_DASHBOARD', params: {}, confidence: 0.85 };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // NAVIGATE_LISTINGS — view my listings
+  // ═══════════════════════════════════════════════════════════════════════
+  if (
+    (isViewVerb && (
+      text.includes('listing') || text.includes('लिस्टिंग') ||
+      text.includes('meri') || text.includes('मेरी') ||
+      text.includes('fasal') || text.includes('फसल')
+    )) ||
+    text.includes('meri listing') ||
+    text.includes('मेरी लिस्टिंग') ||
+    text.includes('listing dikhao') ||
+    text.includes('लिस्टिंग दिखाओ')
+  ) {
+    return { intent: 'NAVIGATE_LISTINGS', params: {}, confidence: 0.85 };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // CHECK_WEATHER — weather, rain, mausam queries
+  // ═══════════════════════════════════════════════════════════════════════
+  const isWeather =
+    text.includes('weather') ||
+    text.includes('mausam') ||
+    text.includes('मौसम') ||
+    text.includes('baarish') ||
+    text.includes('barish') ||
+    text.includes('बारिश') ||
+    text.includes('rain') ||
+    text.includes('temperature') ||
+    text.includes('taapman') ||
+    text.includes('तापमान') ||
+    text.includes('dhoop') ||
+    text.includes('धूप') ||
+    text.includes('garmi') ||
+    text.includes('गर्मी') ||
+    text.includes('thand') ||
+    text.includes('ठंड') ||
+    text.includes('monsoon') ||
+    text.includes('मानसून') ||
+    text.includes('spray') ||
+    text.includes('स्प्रे') ||
+    text.includes('boni') ||
+    text.includes('बोनी') ||
+    text.includes('hawa') ||
+    text.includes('हवा') ||
+    text.includes('badal') ||
+    text.includes('बादल') ||
+    text.includes('toofan') ||
+    text.includes('तूफान') ||
+    text.includes('ola') ||
+    text.includes('ओला') ||
+    text.includes('kaisa hai mausam') ||
+    text.includes('mausam kaisa');
+
+  if (isWeather) {
+    return {
+      intent: 'CHECK_WEATHER',
+      params: {},
+      confidence: 0.85,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PRICE_FORECAST — checked BEFORE mandi to catch future-price queries
+  // ═══════════════════════════════════════════════════════════════════════
+  const isForecast =
+    text.includes('forecast') ||
+    text.includes('prediction') ||
+    text.includes('predict') ||
+    text.includes('future') ||
+    text.includes('trend') ||
+    text.includes('aage') ||
+    text.includes('agla') ||
+    text.includes('baad') ||
+    text.includes('hoga') ||
+    text.includes('होगा') ||
+    text.includes('आगे') ||
+    text.includes('अगला') ||
+    text.includes('भविष्य') ||
+    text.includes('पूर्वानुमान') ||
+    text.includes('अनुमान') ||
+    text.includes('ट्रेंड') ||
+    text.includes('badhega') ||
+    text.includes('बढ़ेगा') ||
+    text.includes('girega') ||
+    text.includes('गिरेगा') ||
+    text.includes('price prediction') ||
+    text.includes('bhav prediction') ||
+    text.includes('rate badhega') ||
+    text.includes('rate girega') ||
+    text.includes('daam badhega') ||
+    text.includes('daam girega') ||
+    // "kya hoga bhav" / "rate kya hoga" patterns
+    (text.includes('kya hog') && (text.includes('bhav') || text.includes('rate') || text.includes('price') || text.includes('daam'))) ||
+    (text.includes('क्या होग') && (text.includes('भाव') || text.includes('रेट') || text.includes('दाम')));
+
+  if (isForecast) {
+    const crop = normalizeCrop(text);
+    return {
+      intent: 'PRICE_FORECAST',
+      params: { crop_name: crop ?? undefined },
+      confidence: crop ? 0.9 : 0.75,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // CHECK_MANDI_PRICE — checked FIRST to avoid overlap with CREATE_LISTING
   // ═══════════════════════════════════════════════════════════════════════
   const isMandi =
@@ -423,6 +543,7 @@ export function ruleBasedIntent(input: string): IntentResult {
 
   // ── HELP (default) ────────────────────────────────────────────────────────
   return { intent: 'HELP', params: {}, confidence: 0.2 };
+
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
