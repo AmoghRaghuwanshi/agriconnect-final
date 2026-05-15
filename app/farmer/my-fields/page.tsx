@@ -117,7 +117,7 @@ export default function MyFieldsPage() {
 
   return (
     <div style={{ background: 'var(--bg-base)', minHeight: '100vh', paddingBottom: '4rem' }}>
-      <DashboardNav title="My Fields (GIS)" role="farmer" />
+      <DashboardNav />
 
       <main className="container" style={{ padding: '2rem 1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>

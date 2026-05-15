@@ -265,7 +265,7 @@ export default function TechStackPage() {
             <div style={{ color: '#f59e0b' }}>{'for (key of [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5]) {'}</div>
             <div style={{ paddingLeft: '1.5rem', color: '#60a5fa' }}>{'for (model of ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash"]) {'}</div>
             <div style={{ paddingLeft: '3rem' }}><span style={{ color: '#c084fc' }}>try</span> {'{ result = await genAI(key, model); '}<span style={{ color: '#22c55e' }}>return result;</span> {'}'}</div>
-            <div style={{ paddingLeft: '3rem' }}><span style={{ color: '#ef4444' }}>catch</span>{' { '}<span style={{ color: '#64748b' }}>// 429 or 404 → try next</span>{' }'}</div>
+            <div style={{ paddingLeft: '3rem' }}><span style={{ color: '#ef4444' }}>catch</span>{' { '}<span style={{ color: '#64748b' }}>{'// 429 or 404 → try next'}</span>{' }'}</div>
             <div style={{ paddingLeft: '1.5rem', color: '#60a5fa' }}>{'}'}</div>
             <div style={{ color: '#f59e0b' }}>{'}'}</div>
             <div style={{ marginTop: '0.5rem', color: '#22c55e' }}>{'// Result: Near-zero chance of total failure 🚀'}</div>

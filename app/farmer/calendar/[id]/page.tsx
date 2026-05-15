@@ -135,7 +135,7 @@ export default function CropCalendarPage() {
   if (loading) {
     return (
       <div style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <DashboardNav title="Crop Calendar" role="farmer" />
+        <DashboardNav />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ width: 40, height: 40, border: '4px solid var(--primary-100)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
           <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
@@ -149,7 +149,7 @@ export default function CropCalendarPage() {
   if (error || !data) {
     return (
       <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
-        <DashboardNav title="Crop Calendar" role="farmer" />
+        <DashboardNav />
         <main className="container" style={{ padding: '2rem' }}>
           <div className="alert alert-error">Error: {error}</div>
           <button className="btn btn-outline" style={{ marginTop: '1rem' }} onClick={() => router.back()}>Go Back</button>
@@ -162,7 +162,7 @@ export default function CropCalendarPage() {
 
   return (
     <div style={{ background: 'var(--bg-base)', minHeight: '100vh', paddingBottom: '4rem' }}>
-      <DashboardNav title={`${data.field.name} — Crop Calendar`} role="farmer" />
+      <DashboardNav />
 
       <main className="container" style={{ padding: '2rem 1.5rem', maxWidth: '1100px', margin: '0 auto' }}>
 

@@ -1,12 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useListingStore } from '@/store/listingStore';
 import { useOrderStore } from '@/store/orderStore';
 import { useAuthStore } from '@/store/authStore';
+import RecommendationSection from '@/components/shared/RecommendationSection';
+import { useWholesalerRecommendations } from '@/hooks/useRecommendations';
 
 export default function WholesalerBrowse() {
+  // B2B listing type used across modal and upsell
+  type B2BListing = {
+    id: string; cropName: string; variety: string; pricePerKg: number;
+    quantityRemaining: number; minOrderKg: number; maxOrderKg: number;
+    storageType: string; farmName: string; farmerVillage: string;
+    farmerState: string; farmerScore: number; farmerOrders: number;
+    farmerVerified: boolean; farmerId: string;
+  };
+
   const [mounted, setMounted] = useState(false);
   const { listings } = useListingStore();
   const { addOrder } = useOrderStore();
@@ -16,32 +27,49 @@ export default function WholesalerBrowse() {
   const [sortBy, setSortBy] = useState('Score');
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [favs, setFavs] = useState<string[]>([]);
-  const [orderModal, setOrderModal] = useState<null | typeof b2bListings[0]>(null);
+  const [orderModal, setOrderModal] = useState<null | B2BListing>(null);
   const [orderQty, setOrderQty] = useState(100);
   const [orderSuccess, setOrderSuccess] = useState('');
+  const [showUpsell, setShowUpsell] = useState(false);
+  const [lastOrderedFarmerId, setLastOrderedFarmerId] = useState('');
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Wholesaler recommendations based on order history
+  const recommendations = useWholesalerRecommendations(user?.id || '', 6);
+
+  // Demo B2B listings (enriched with farmer data) — must be before early return for hook rules
+  const uniqueListings = useMemo(() => {
+    const b2b = [
+      { id: 'L-B2B-01', cropName: 'Wheat (Lokwan)', variety: 'HD-3086', pricePerKg: 22, quantityRemaining: 2000, minOrderKg: 100, maxOrderKg: 1000, storageType: 'Warehouse', farmName: 'Raju Farms', farmerVillage: 'Hoshangabad', farmerState: 'MP', farmerScore: 84, farmerOrders: 12, farmerVerified: true, farmerId: 'demo-farmer-001' },
+      { id: 'L-B2B-02', cropName: 'Onion (Nashik Red)', variety: 'N-53', pricePerKg: 14, quantityRemaining: 1500, minOrderKg: 200, maxOrderKg: 800, storageType: 'Cold Storage', farmName: 'Kumar Organic Farm', farmerVillage: 'Nashik', farmerState: 'MH', farmerScore: 71, farmerOrders: 8, farmerVerified: true, farmerId: 'demo-farmer-002' },
+      { id: 'L-B2B-03', cropName: 'Potato (Agra)', variety: 'Kufri Jyoti', pricePerKg: 12, quantityRemaining: 3000, minOrderKg: 500, maxOrderKg: 2000, storageType: 'Cold Storage', farmName: 'H.K. Farms', farmerVillage: 'Lucknow', farmerState: 'UP', farmerScore: 91, farmerOrders: 18, farmerVerified: true, farmerId: 'demo-farmer-004' },
+      { id: 'L-B2B-04', cropName: 'Basmati Rice', variety: 'Pusa 1121', pricePerKg: 52, quantityRemaining: 800, minOrderKg: 100, maxOrderKg: 500, storageType: 'Warehouse', farmName: 'Venkat Agri', farmerVillage: 'Kolar', farmerState: 'KA', farmerScore: 65, farmerOrders: 5, farmerVerified: true, farmerId: 'demo-farmer-005' },
+      { id: 'L-B2B-05', cropName: 'Green Chili', variety: 'Guntur Sannam', pricePerKg: 45, quantityRemaining: 400, minOrderKg: 50, maxOrderKg: 200, storageType: 'Open Air', farmName: 'Sunita Farm', farmerVillage: 'Varanasi', farmerState: 'UP', farmerScore: 0, farmerOrders: 0, farmerVerified: false, farmerId: 'demo-farmer-003' },
+      // Include active listings from store
+      ...listings.filter(l => l.status === 'ACTIVE').map(l => ({
+        id: l.id, cropName: l.cropName, variety: l.variety || '', pricePerKg: l.pricePerKg,
+        quantityRemaining: l.quantityRemaining, minOrderKg: l.minOrderKg || 50, maxOrderKg: 500,
+        storageType: l.storageType || 'Warehouse', farmName: l.farmerName || 'Farm',
+        farmerVillage: '', farmerState: '', farmerScore: 0, farmerOrders: 0,
+        farmerVerified: false, farmerId: ''
+      }))
+    ];
+    // Dedupe by id
+    return b2b.filter((l, i, a) => a.findIndex(x => x.id === l.id) === i);
+  }, [listings]);
+
+  // Post-order upsell items — same farmer + complementary (must be before early return)
+  const upsellItems = useMemo(() => {
+    if (!lastOrderedFarmerId) return [];
+    return uniqueListings
+      .filter((l) => l.farmerId === lastOrderedFarmerId || l.farmerState === uniqueListings.find(x => x.farmerId === lastOrderedFarmerId)?.farmerState)
+      .slice(0, 4);
+  }, [lastOrderedFarmerId, uniqueListings]);
+
+  const toggleFav = useCallback((id: string) => setFavs(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]), []);
+
   if (!mounted) return null;
-
-  // Demo B2B listings (enriched with farmer data)
-  const b2bListings = [
-    { id: 'L-B2B-01', cropName: 'Wheat (Lokwan)', variety: 'HD-3086', pricePerKg: 22, quantityRemaining: 2000, minOrderKg: 100, maxOrderKg: 1000, storageType: 'Warehouse', farmName: 'Raju Farms', farmerVillage: 'Hoshangabad', farmerState: 'MP', farmerScore: 84, farmerOrders: 12, farmerVerified: true, farmerId: 'demo-farmer-001' },
-    { id: 'L-B2B-02', cropName: 'Onion (Nashik Red)', variety: 'N-53', pricePerKg: 14, quantityRemaining: 1500, minOrderKg: 200, maxOrderKg: 800, storageType: 'Cold Storage', farmName: 'Kumar Organic Farm', farmerVillage: 'Nashik', farmerState: 'MH', farmerScore: 71, farmerOrders: 8, farmerVerified: true, farmerId: 'demo-farmer-002' },
-    { id: 'L-B2B-03', cropName: 'Potato (Agra)', variety: 'Kufri Jyoti', pricePerKg: 12, quantityRemaining: 3000, minOrderKg: 500, maxOrderKg: 2000, storageType: 'Cold Storage', farmName: 'H.K. Farms', farmerVillage: 'Lucknow', farmerState: 'UP', farmerScore: 91, farmerOrders: 18, farmerVerified: true, farmerId: 'demo-farmer-004' },
-    { id: 'L-B2B-04', cropName: 'Basmati Rice', variety: 'Pusa 1121', pricePerKg: 52, quantityRemaining: 800, minOrderKg: 100, maxOrderKg: 500, storageType: 'Warehouse', farmName: 'Venkat Agri', farmerVillage: 'Kolar', farmerState: 'KA', farmerScore: 65, farmerOrders: 5, farmerVerified: true, farmerId: 'demo-farmer-005' },
-    { id: 'L-B2B-05', cropName: 'Green Chili', variety: 'Guntur Sannam', pricePerKg: 45, quantityRemaining: 400, minOrderKg: 50, maxOrderKg: 200, storageType: 'Open Air', farmName: 'Sunita Farm', farmerVillage: 'Varanasi', farmerState: 'UP', farmerScore: 0, farmerOrders: 0, farmerVerified: false, farmerId: 'demo-farmer-003' },
-    // Include active listings from store
-    ...listings.filter(l => l.status === 'ACTIVE').map(l => ({
-      id: l.id, cropName: l.cropName, variety: l.variety || '', pricePerKg: l.pricePerKg,
-      quantityRemaining: l.quantityRemaining, minOrderKg: l.minOrderKg || 50, maxOrderKg: 500,
-      storageType: l.storageType || 'Warehouse', farmName: l.farmerName || 'Farm',
-      farmerVillage: '', farmerState: '', farmerScore: 0, farmerOrders: 0,
-      farmerVerified: false, farmerId: ''
-    }))
-  ];
-
-  // Dedupe by id
-  const uniqueListings = b2bListings.filter((l, i, a) => a.findIndex(x => x.id === l.id) === i);
 
   const crops = Array.from(new Set(uniqueListings.map(l => l.cropName)));
   const states = Array.from(new Set(uniqueListings.map(l => l.farmerState).filter(Boolean)));
@@ -57,8 +85,6 @@ export default function WholesalerBrowse() {
   else if (sortBy === 'Price Asc') filtered.sort((a, b) => a.pricePerKg - b.pricePerKg);
   else if (sortBy === 'Price Desc') filtered.sort((a, b) => b.pricePerKg - a.pricePerKg);
   else if (sortBy === 'Latest') filtered.sort((a, b) => b.quantityRemaining - a.quantityRemaining);
-
-  const toggleFav = (id: string) => setFavs(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,8 +105,21 @@ export default function WholesalerBrowse() {
       orderType: 'B2B',
       deliveryAddress: { label: 'Warehouse', line1: 'Plot 45 Industrial Area', city: 'Indore', state: 'MP', pincode: '452001' },
     });
+    setLastOrderedFarmerId(orderModal.farmerId);
     setOrderSuccess(orderModal.cropName);
     setOrderModal(null);
+    setShowUpsell(true);
+    // Auto-dismiss upsell after 15 seconds
+    setTimeout(() => setShowUpsell(false), 15000);
+  };
+
+  const handleRecoPlaceOrder = (listing: { id: string; cropName: string; farmerName: string; farmerId: string; pricePerKg: number; minOrderKg: number }) => {
+    // Find in b2bListings for full data
+    const found = uniqueListings.find(l => l.id === listing.id);
+    if (found) {
+      setOrderQty(found.minOrderKg);
+      setOrderModal(found);
+    }
   };
 
   return (
@@ -185,6 +224,29 @@ export default function WholesalerBrowse() {
         {filtered.length} listing{filtered.length !== 1 ? 's' : ''} shown
       </div>
 
+      {/* ── Recommended for You Section ──────────────────────────────── */}
+      {recommendations.length > 0 && (
+        <div style={{ marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1rem', fontFamily: 'Outfit, sans-serif' }}>
+            📊 Recommended for You
+          </h2>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem' }}>
+            Based on your order history and popular items
+          </p>
+          {recommendations.map((group) => (
+            <RecommendationSection
+              key={group.title}
+              group={group}
+              variant="wholesaler"
+              onPlaceOrder={handleRecoPlaceOrder}
+              onRfq={(listing) => {
+                window.location.href = `/wholesaler/rfq/new?listing=${listing.id}&crop=${encodeURIComponent(listing.cropName)}&price=${listing.pricePerKg}`;
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Order Modal */}
       {orderModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -220,8 +282,62 @@ export default function WholesalerBrowse() {
         </div>
       )}
 
-      {/* Order Success Toast */}
-      {orderSuccess && (
+      {/* ── Post-Order Upsell Panel ──────────────────────────────────── */}
+      {showUpsell && upsellItems.length > 0 && (
+        <div className="reco-post-order">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>✅</span>
+                <span style={{ fontWeight: 800, fontSize: '1rem', fontFamily: 'Outfit, sans-serif' }}>
+                  Order placed for {orderSuccess}!
+                </span>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.2rem' }}>
+                This supplier also offers these products:
+              </p>
+            </div>
+            <button
+              onClick={() => setShowUpsell(false)}
+              style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748b' }}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="reco-scroll">
+            {upsellItems.map((item) => (
+              <div key={item.id} className="reco-card reco-card-b2b animate-fade-in-up">
+                <div className="reco-badge reco-badge-b2b">Same supplier</div>
+                <div className="reco-card-body">
+                  <div className="reco-card-name">{item.cropName}</div>
+                  <div className="reco-card-variety">{item.variety} · {item.quantityRemaining.toLocaleString()} kg</div>
+                  <div className="reco-card-price reco-price-b2b">₹{item.pricePerKg}<span>/kg</span></div>
+                  <div className="reco-card-farmer">{item.farmName} · {item.farmerState}</div>
+                  <div className="reco-b2b-actions">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem' }}
+                      onClick={() => { setOrderQty(item.minOrderKg); setOrderModal(item); setShowUpsell(false); }}
+                    >
+                      Order
+                    </button>
+                    <Link
+                      href={`/wholesaler/rfq/new?farmer=${item.farmerId}&listing=${item.id}&crop=${encodeURIComponent(item.cropName)}&price=${item.pricePerKg}`}
+                      className="btn btn-outline btn-sm"
+                      style={{ fontSize: '0.78rem' }}
+                    >
+                      RFQ
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Order Success Toast (fallback when no upsell) */}
+      {orderSuccess && !showUpsell && (
         <div style={{
           position: 'fixed', bottom: '2rem', right: '2rem',
           background: '#14b8a6', color: '#fff',

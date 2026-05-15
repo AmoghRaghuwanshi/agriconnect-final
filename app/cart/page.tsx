@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { useCartStore } from '@/store/cartStore';
+import { useCartStore, type CartItem } from '@/store/cartStore';
+import { useListingStore } from '@/store/listingStore';
 import Header from '@/components/shared/Header';
+import RecommendationSection from '@/components/shared/RecommendationSection';
+import { useRecommendations } from '@/hooks/useRecommendations';
 import { SkeletonCartRow } from '@/components/shared/SkeletonCard';
 import { ShoppingCart, ArrowRight, ShieldCheck, User, Trash2, Tag } from 'lucide-react';
 
@@ -14,9 +17,21 @@ function getCropImage(imageUrl?: string): string {
   return 'https://images.unsplash.com/photo-1595856720188-75f80b9125cc?auto=format&fit=crop&w=400&q=80';
 }
 
+function getCropImageForListing(category: string, images?: string[]): string {
+  if (images && images.length > 0) return images[0];
+  switch (category) {
+    case 'Grains': return 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=400&q=80';
+    case 'Vegetables': return 'https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?auto=format&fit=crop&w=400&q=80';
+    case 'Spices': return 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=400&q=80';
+    case 'Fruits': return 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=400&q=80';
+    default: return 'https://images.unsplash.com/photo-1595856720188-75f80b9125cc?auto=format&fit=crop&w=400&q=80';
+  }
+}
+
 export default function CartPage() {
   const { isAuthenticated } = useAuthStore();
-  const { items, updateQuantity, removeItem, total } = useCartStore();
+  const { items, updateQuantity, removeItem, total, addItem } = useCartStore();
+  const { listings } = useListingStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
@@ -35,6 +50,65 @@ export default function CartPage() {
     }
     return Array.from(map.values());
   }, [items]);
+
+  // Recommendation config — derived from cart contents
+  const recoConfig = useMemo(() => {
+    const cartCropNames = items.map((i) => i.crop_name);
+    const cartFarmerIds = [...new Set(items.map((i) => i.farmer_id))];
+    const cartListingIds = items.map((i) => i.listing_id);
+    // Get categories from the listing store
+    const cartCategories = items
+      .map((i) => {
+        const listing = listings.find((l) => l.id === i.listing_id);
+        return listing?.category;
+      })
+      .filter(Boolean) as string[];
+
+    return { cartCropNames, cartFarmerIds, cartListingIds, cartCategories, maxPerSection: 6, isB2B: false };
+  }, [items, listings]);
+
+  const recommendations = useRecommendations(recoConfig);
+
+  // Cart helpers for recommendation cards
+  const getCartItem = useCallback(
+    (listingId: string) => items.find((i) => i.listing_id === listingId),
+    [items]
+  );
+
+  const handleRecoAdd = useCallback(
+    (listing: { id: string; cropName: string; farmerName: string; farmerId: string; pricePerKg: number; minOrderKg: number; category: string; images: string[] }) => {
+      if (!isAuthenticated) { router.push('/auth/consumer'); return; }
+      const cartItem: CartItem = {
+        id: `cart-${listing.id}-${Date.now()}`,
+        listing_id: listing.id,
+        quantity_kg: listing.minOrderKg,
+        price_per_kg: listing.pricePerKg,
+        crop_name: listing.cropName,
+        farmer_name: listing.farmerName,
+        farmer_id: listing.farmerId,
+        min_order_kg: listing.minOrderKg,
+        image_url: getCropImageForListing(listing.category, listing.images),
+      };
+      addItem(cartItem);
+    },
+    [isAuthenticated, router, addItem]
+  );
+
+  const handleRecoIncrement = useCallback(
+    (listingId: string, currentQty: number, minOrder: number) => {
+      updateQuantity(listingId, currentQty + minOrder);
+    },
+    [updateQuantity]
+  );
+
+  const handleRecoDecrement = useCallback(
+    (listingId: string, currentQty: number, minOrder: number) => {
+      const newQty = currentQty - minOrder;
+      if (newQty <= 0) removeItem(listingId);
+      else updateQuantity(listingId, newQty);
+    },
+    [updateQuantity, removeItem]
+  );
 
   if (!mounted) {
     return (
@@ -179,6 +253,19 @@ export default function CartPage() {
                     </div>
                   ))}
                 </div>
+              ))}
+
+              {/* ── Recommendations ──────────────────────────────────────── */}
+              {recommendations.map((group) => (
+                <RecommendationSection
+                  key={group.title}
+                  group={group}
+                  variant="consumer"
+                  onAdd={handleRecoAdd}
+                  getCartItem={getCartItem}
+                  onIncrement={handleRecoIncrement}
+                  onDecrement={handleRecoDecrement}
+                />
               ))}
 
               {/* Coupon placeholder */}

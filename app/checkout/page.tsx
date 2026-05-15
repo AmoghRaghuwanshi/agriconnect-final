@@ -1,20 +1,33 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { useOrderStore } from '@/store/orderStore';
-import { useCartStore } from '@/store/cartStore';
+import { useCartStore, type CartItem } from '@/store/cartStore';
 import { useListingStore } from '@/store/listingStore';
 import Header from '@/components/shared/Header';
+import RecommendationSection from '@/components/shared/RecommendationSection';
+import { useRecommendations } from '@/hooks/useRecommendations';
 import { Check, ShieldCheck, MapPin } from 'lucide-react';
+
+function getCropImageForListing(category: string, images?: string[]): string {
+  if (images && images.length > 0) return images[0];
+  switch (category) {
+    case 'Grains': return 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=400&q=80';
+    case 'Vegetables': return 'https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?auto=format&fit=crop&w=400&q=80';
+    case 'Spices': return 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=400&q=80';
+    case 'Fruits': return 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=400&q=80';
+    default: return 'https://images.unsplash.com/photo-1595856720188-75f80b9125cc?auto=format&fit=crop&w=400&q=80';
+  }
+}
 
 export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuthStore();
   const { addOrder } = useOrderStore();
-  const { items: cartItems, total } = useCartStore();
-  const { getById: getListingById } = useListingStore();
+  const { items: cartItems, total, addItem, updateQuantity, removeItem } = useCartStore();
+  const { getById: getListingById, listings } = useListingStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [address, setAddress] = useState({ label: 'Home', line1: '', city: '', state: '', pincode: '' });
@@ -63,6 +76,62 @@ export default function CheckoutPage() {
     }
     return Array.from(map.values());
   }, [cartItems, getListingById]);
+
+  // ── Recommendations — "Add before you checkout" ──────────────────────
+  const recoConfig = useMemo(() => {
+    const cartCropNames = cartItems.map((i) => i.crop_name);
+    const cartFarmerIds = [...new Set(cartItems.map((i) => i.farmer_id))];
+    const cartListingIds = cartItems.map((i) => i.listing_id);
+    const cartCategories = cartItems
+      .map((i) => {
+        const listing = listings.find((l) => l.id === i.listing_id);
+        return listing?.category;
+      })
+      .filter(Boolean) as string[];
+    return { cartCropNames, cartFarmerIds, cartListingIds, cartCategories, maxPerSection: 4, isB2B: false };
+  }, [cartItems, listings]);
+
+  const recommendations = useRecommendations(recoConfig);
+
+  // Cart helpers for recommendation cards
+  const getCartItem = useCallback(
+    (listingId: string) => cartItems.find((i) => i.listing_id === listingId),
+    [cartItems]
+  );
+
+  const handleRecoAdd = useCallback(
+    (listing: { id: string; cropName: string; farmerName: string; farmerId: string; pricePerKg: number; minOrderKg: number; category: string; images: string[] }) => {
+      const cartItem: CartItem = {
+        id: `cart-${listing.id}-${Date.now()}`,
+        listing_id: listing.id,
+        quantity_kg: listing.minOrderKg,
+        price_per_kg: listing.pricePerKg,
+        crop_name: listing.cropName,
+        farmer_name: listing.farmerName,
+        farmer_id: listing.farmerId,
+        min_order_kg: listing.minOrderKg,
+        image_url: getCropImageForListing(listing.category, listing.images),
+      };
+      addItem(cartItem);
+    },
+    [addItem]
+  );
+
+  const handleRecoIncrement = useCallback(
+    (listingId: string, currentQty: number, minOrder: number) => {
+      updateQuantity(listingId, currentQty + minOrder);
+    },
+    [updateQuantity]
+  );
+
+  const handleRecoDecrement = useCallback(
+    (listingId: string, currentQty: number, minOrder: number) => {
+      const newQty = currentQty - minOrder;
+      if (newQty <= 0) removeItem(listingId);
+      else updateQuantity(listingId, newQty);
+    },
+    [updateQuantity, removeItem]
+  );
 
   if (!mounted || !user) return null;
 
@@ -156,7 +225,7 @@ export default function CheckoutPage() {
         <h1 className="page-title" style={{ marginBottom: '2rem' }}>Checkout</h1>
 
         <div className="bento-2" style={{ alignItems: 'start' }}>
-          {/* Left — Address + Items */}
+          {/* Left — Address + Items + Recommendations */}
           <div>
             {/* Address Form */}
             <div className="bill-breakdown" style={{ marginBottom: '1.25rem' }}>
@@ -224,6 +293,30 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
+
+            {/* ── "Add before you checkout" Recommendations ─────────── */}
+            {recommendations.length > 0 && (
+              <div style={{ marginTop: '1.25rem' }}>
+                {recommendations.slice(0, 1).map((group) => (
+                  <RecommendationSection
+                    key={group.title}
+                    group={{
+                      ...group,
+                      title: 'Add before you checkout',
+                      icon: '⚡',
+                      items: group.items.slice(0, 4),
+                    }}
+                    variant="consumer"
+                    collapsible
+                    defaultOpen
+                    onAdd={handleRecoAdd}
+                    getCartItem={getCartItem}
+                    onIncrement={handleRecoIncrement}
+                    onDecrement={handleRecoDecrement}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right — Bill Summary */}

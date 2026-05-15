@@ -124,7 +124,7 @@ Best Crops: ${analysis.bestCrops?.map((c: any) => c.name).join(', ') || 'N/A'}`;
   if (loading) {
     return (
       <div style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <DashboardNav title="AI Yield Intelligence" role="farmer" />
+        <DashboardNav />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ width: '40px', height: '40px', border: '4px solid var(--primary-100)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
           <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
@@ -138,7 +138,7 @@ Best Crops: ${analysis.bestCrops?.map((c: any) => c.name).join(', ') || 'N/A'}`;
   if (error || !data) {
     return (
       <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
-        <DashboardNav title="AI Yield Intelligence" role="farmer" />
+        <DashboardNav />
         <main className="container" style={{ padding: '2rem' }}>
           <div className="alert alert-error">Error: {error}</div>
           <button className="btn btn-outline" style={{ marginTop: '1rem' }} onClick={() => router.back()}>Go Back</button>
@@ -153,7 +153,7 @@ Best Crops: ${analysis.bestCrops?.map((c: any) => c.name).join(', ') || 'N/A'}`;
 
   return (
     <div style={{ background: 'var(--bg-base)', minHeight: '100vh', paddingBottom: '4rem' }}>
-      <DashboardNav title={`${field.name} — Intelligence`} role="farmer" />
+      <DashboardNav />
 
       <main className="container" style={{ padding: '2rem 1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
         

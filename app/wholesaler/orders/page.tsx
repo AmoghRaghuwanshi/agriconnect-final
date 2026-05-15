@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useOrderStore } from '@/store/orderStore';
 import { useAuthStore } from '@/store/authStore';
+import RecommendationSection from '@/components/shared/RecommendationSection';
+import { useWholesalerRecommendations } from '@/hooks/useRecommendations';
 
 export default function WholesalerOrders() {
   const [mounted, setMounted] = useState(false);
@@ -12,6 +14,10 @@ export default function WholesalerOrders() {
   const { user } = useAuthStore();
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Recommendations based on order history
+  const recommendations = useWholesalerRecommendations(user?.id || '', 6);
+
   if (!mounted || !user) return null;
 
   // Demo orders + store orders
@@ -48,6 +54,11 @@ export default function WholesalerOrders() {
     const a = document.createElement('a'); a.href = url; a.download = 'wholesaler_orders.csv'; a.click();
   };
 
+  const handleRecoPlaceOrder = (listing: { id: string; cropName: string; pricePerKg: number; minOrderKg: number }) => {
+    // Navigate to browse page with the listing pre-selected
+    window.location.href = `/wholesaler/browse?order=${listing.id}`;
+  };
+
   return (
     <div style={{ maxWidth: '1200px' }}>
       <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -57,6 +68,29 @@ export default function WholesalerOrders() {
         </div>
         <button className="btn btn-outline" onClick={exportCSV}>📥 Export CSV</button>
       </div>
+
+      {/* ── Quick Reorder & Related Supplies ─────────────────────────── */}
+      {recommendations.length > 0 && (
+        <div style={{
+          marginBottom: '2rem',
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, rgba(20,184,166,0.04) 0%, rgba(15,118,110,0.06) 100%)',
+          borderRadius: 'var(--radius-xl)',
+          border: '1px solid rgba(20,184,166,0.1)',
+        }}>
+          {recommendations.map((group) => (
+            <RecommendationSection
+              key={group.title}
+              group={group}
+              variant="wholesaler"
+              onPlaceOrder={handleRecoPlaceOrder}
+              onRfq={(listing) => {
+                window.location.href = `/wholesaler/rfq/new?listing=${listing.id}&crop=${encodeURIComponent(listing.cropName)}&price=${listing.pricePerKg}`;
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.5rem', borderBottom: '2px solid #e2e8f0' }}>

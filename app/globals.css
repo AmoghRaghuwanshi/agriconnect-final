@@ -1220,3 +1220,297 @@ input[type="range"]::-moz-range-thumb {
 .bill-value { font-weight: 600; color: var(--text-primary); }
 .bill-free { font-weight: 800; color: var(--green-600); font-size: 0.85rem; padding: 0.1rem 0.5rem; background: var(--green-50); border-radius: 4px; }
 .bill-row.total { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border); font-weight: 800; color: var(--text-primary); font-size: 1.1rem; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Recommendation Sections
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Section wrapper */
+.reco-section {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.reco-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(27,67,50,0.04) 0%, rgba(82,183,136,0.06) 100%);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(27,67,50,0.06);
+}
+
+.reco-section-header.reco-collapsible {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.reco-section-header.reco-collapsible:hover {
+  background: linear-gradient(135deg, rgba(27,67,50,0.06) 0%, rgba(82,183,136,0.08) 100%);
+}
+
+.reco-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+}
+
+.reco-section-icon {
+  font-size: 1.15rem;
+}
+
+.reco-section-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-base);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+}
+
+.reco-section-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.reco-scroll-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.reco-scroll-btn:hover {
+  background: var(--green-100);
+  border-color: var(--green-600);
+  color: var(--green-900);
+}
+
+/* Horizontal scroll container */
+.reco-scroll {
+  display: flex;
+  gap: 0.875rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none;
+}
+.reco-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Consumer Recommendation Card ──────────────────────────────────────── */
+.reco-card {
+  flex-shrink: 0;
+  width: 11rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  scroll-snap-align: start;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  position: relative;
+}
+.reco-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.reco-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: rgba(27,67,50,0.85);
+  color: white;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reco-card-img {
+  width: 100%;
+  height: 6.5rem;
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.reco-card-body {
+  padding: 0.65rem 0.75rem 0.75rem;
+}
+
+.reco-card-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reco-card-variety {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reco-card-price {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--green-900);
+  font-family: 'Outfit', sans-serif;
+}
+.reco-card-price span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.reco-card-farmer {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reco-card-detail {
+  font-size: 0.68rem;
+  color: var(--olive-700);
+  margin-top: 0.2rem;
+}
+
+.reco-add-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0;
+  border: 1.5px solid var(--green-700);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--green-900);
+  font-weight: 800;
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: 'Figtree', sans-serif;
+  letter-spacing: 0.04em;
+}
+.reco-add-btn:hover {
+  background: var(--green-900);
+  color: white;
+  border-color: var(--green-900);
+}
+
+.reco-qty-control {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 1.5px solid var(--green-700);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.reco-qty-control button {
+  flex: 1;
+  padding: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--green-900);
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.reco-qty-control button:hover { background: var(--green-100); }
+.reco-qty-control span {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--green-900);
+}
+
+/* ── B2B Recommendation Card Variant ───────────────────────────────────── */
+.reco-card-b2b {
+  width: 13rem;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border-color: #e2e8f0;
+}
+.reco-card-b2b:hover {
+  border-color: #94a3b8;
+}
+
+.reco-badge-b2b {
+  background: rgba(26,46,90,0.85);
+}
+
+.reco-price-b2b {
+  color: #0f766e;
+}
+
+.reco-b2b-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+/* ── Post-Order Upsell Panel (Wholesaler) ──────────────────────────────── */
+.reco-post-order {
+  position: fixed;
+  bottom: 0;
+  left: 260px;
+  right: 0;
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+  border-top: 2px solid #14b8a6;
+  padding: 1.25rem 2rem 1.5rem;
+  z-index: 900;
+  animation: slide-up 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.08);
+}
+
+.reco-post-order .reco-section-header {
+  background: transparent;
+  border: none;
+  padding: 0 0 0.75rem;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .reco-card { width: 10rem; }
+  .reco-card-b2b { width: 11.5rem; }
+  .reco-card-img { height: 5.5rem; }
+  .reco-post-order { left: 0; padding: 1rem 1rem 1.25rem; }
+}
